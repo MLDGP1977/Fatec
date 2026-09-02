@@ -1,0 +1,1293 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Gestão de Estoque Kanban com Alexa</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(226, 232, 240, 1);
+        }
+
+        @media (max-width: 640px) {
+            .btn-mobile {
+                width: 100%;
+                justify-content: center;
+                padding: 12px;
+            }
+        }
+
+        .checkbox-custom {
+            width: 28px;
+            height: 28px;
+            border-radius: 8px;
+            cursor: pointer;
+            border: 2px solid #cbd5e1;
+            appearance: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            background: white;
+        }
+
+        .checkbox-custom:checked {
+            background-color: #3b82f6;
+            border-color: #3b82f6;
+        }
+
+        .checkbox-custom:checked::after {
+            content: '✓';
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .shelf-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 4px;
+        }
+
+        .bin {
+            aspect-ratio: 1;
+            border-radius: 6px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            font-weight: 800;
+            transition: all 0.3s;
+            border: 1px solid #e2e8f0;
+            background: #fff;
+            color: #cbd5e1;
+            overflow: hidden;
+            padding: 2px;
+            text-align: center;
+            line-height: 1.2;
+            cursor: default;
+        }
+
+        /* Gaveta ocupada (sem seleção): cinza claro + tooltip no hover */
+        .bin.ocupada {
+            background-color: #94a3b8;
+            color: white;
+            border-color: #64748b;
+        }
+
+        .bin.ocupada:hover {
+            background-color: #64748b;
+        }
+
+        /* Gaveta selecionada (OS ou I-CODE): destaque AZUL */
+        .bin.active {
+            background-color: #3b82f6;
+            color: white;
+            border-color: #1d4ed8;
+            box-shadow: 0 0 14px rgba(59, 130, 246, 0.7);
+            z-index: 10;
+            transform: scale(1.05);
+        }
+
+        .bin .bin-pos {
+            font-size: 8px;
+            font-weight: 900;
+            opacity: 0.9;
+            margin-top: 2px;
+            background: rgba(0, 0, 0, 0.2);
+            padding: 1px 3px;
+            border-radius: 3px;
+        }
+
+        .tab-active {
+            border-bottom: 3px solid #3b82f6;
+            color: #3b82f6;
+        }
+
+        .logo-container {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .logo-container img {
+            max-height: 100px;
+            width: auto;
+            object-fit: contain;
+        }
+
+        @keyframes spin {
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .animate-spin-custom {
+            animation: spin 1s linear infinite;
+        }
+
+        .voice-active {
+            color: #ef4444 !important;
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+            0% {
+                transform: scale(1);
+                opacity: 1;
+            }
+
+            50% {
+                transform: scale(1.2);
+                opacity: 0.7;
+            }
+
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .gaveta-bim {
+            height: 42px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 900;
+            color: white;
+            transition: all 0.3s;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .gaveta-ok {
+            background: #22c55e;
+        }
+
+        .gaveta-alerta {
+            background: #ef4444;
+            animation: pulseBIM 1s infinite;
+            box-shadow: 0 0 12px rgba(239, 68, 68, 0.6);
+        }
+        .gaveta-amarela { background: #eab308; }
+
+        @keyframes pulseBIM {
+            0% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.08);
+            }
+
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        #print-section {
+            display: none;
+        }
+
+        @media print {
+
+            html,
+            body {
+                margin: 0 !important;
+                padding: 0 !important;
+                width: 100mm;
+                height: auto;
+                overflow: hidden;
+                background: white;
+            }
+
+            body>*:not(#print-section) {
+                display: none !important;
+            }
+
+            #print-section {
+                display: flex !important;
+                flex-direction: column;
+                width: 100mm;
+                margin: 0;
+                padding: 0;
+            }
+
+            @page {
+                size: 100mm 25mm;
+                margin: 0;
+            }
+
+            .label-to-print {
+                width: 100mm;
+                height: 25mm;
+                padding: 2mm 3mm;
+                box-sizing: border-box;
+                display: flex;
+                flex-direction: column;
+                justify-content: center;
+                font-family: Arial, sans-serif;
+                color: black;
+                overflow: hidden;
+                page-break-after: always;
+                break-after: page;
+            }
+
+            .label-to-print:last-child {
+                page-break-after: avoid;
+                break-after: avoid;
+            }
+        }
+
+        .status-badge {
+            padding: 2px 10px;
+            border-radius: 9999px;
+            font-size: 11px;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .status-verde {
+            background: #dcfce7;
+            color: #16a34a;
+        }
+
+        .status-amarelo {
+            background: #fef9c3;
+            color: #ca8a04;
+        }
+
+        .status-vermelho {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+    </style>
+</head>
+
+<body class="p-2 md:p-8">
+    <div class="max-w-7xl mx-auto">
+        <header
+            class="mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 rounded-2xl shadow-sm border border-slate-100">
+            <div class="flex items-center gap-4">
+                <div class="logo-container">
+                    <img src="https://mldgp1977.github.io/Fatec/Fatec.png" alt="Logo Fatec"
+                        onerror="this.src='https://placehold.co/150x50?text=FATEC'">
+                    <img src="https://mldgp1977.github.io/Fatec/LogoProd.png" alt="Logo Produção Industrial"
+                        onerror="this.src='https://placehold.co/150x50?text=PROD'">
+                </div>
+                <div class="border-l border-slate-200 pl-4">
+                    <h1 class="text-xl md:text-2xl font-bold text-slate-800 leading-tight">Controle de Estoque</h1>
+                    <p class="text-blue-600 font-semibold text-xs md:text-sm">Painel Inteligente</p>
+                    <div class="flex items-center gap-2 mt-1">
+                        <div id="apiIndicator" class="w-2.5 h-2.5 bg-slate-300 rounded-full"></div>
+                        <span id="apiText"
+                            class="text-[11px] font-bold uppercase text-slate-500 tracking-wider">INICIANDO</span>
+                    </div>
+                </div>
+            </div>
+            <div class="flex flex-col sm:flex-row gap-2">
+                <input type="file" id="fileInput" accept=".csv, .xlsx, .xls" class="hidden">
+                <button onclick="document.getElementById('fileInput').click()"
+                    class="btn-mobile bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl font-semibold transition flex items-center gap-2 shadow-md active:scale-95">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                        <polyline points="17 8 12 3 7 8" />
+                        <line x1="12" y1="3" x2="12" y2="15" />
+                    </svg>
+                    Importar Planilha
+                </button>
+                <button onclick="gerarOSDemo()"
+                    class="btn-mobile bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl font-semibold transition flex items-center gap-2 shadow-md active:scale-95">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                    </svg>
+                    Gerar OS Demo
+                </button>
+                <button onclick="deleteDataPrompt()"
+                    class="btn-mobile bg-red-50 hover:bg-red-100 text-red-600 px-4 py-2.5 rounded-xl font-semibold transition flex items-center gap-2 active:scale-95">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                        stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M3 6h18" />
+                        <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                        <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                    </svg>
+                    Limpar Tudo
+                </button>
+            </div>
+        </header>
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+            <div class="glass-card p-4 md:p-6 rounded-2xl shadow-sm lg:col-span-2">
+                <label class="block text-sm font-bold text-slate-700 mb-2 uppercase tracking-wider">Ordem de
+                    Serviço</label>
+                <div class="flex flex-col lg:flex-row gap-3">
+                    <div class="relative flex-1">
+                        <input id="osSelect" list="osList" type="text" placeholder="Digite O.S." autocomplete="off"
+                            onfocus="this.select()"
+                            class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-4 pr-24 py-3 text-lg font-bold text-slate-700 focus:ring-4 focus:ring-blue-100 focus:outline-none transition">
+                            <datalist id="osList"></datalist>
+                        <div class="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                            <button type="button" onclick="startVoiceRecognition('os')"
+                                class="p-2 text-slate-400 hover:text-blue-600 transition-colors"
+                                title="Falar O.S.">🎤</button>
+                            <button id="clearOSBtn" onclick="clearOSSelection()"
+                                class="p-2 text-slate-400 hover:text-red-500 transition-colors hidden"
+                                title="Limpar Seleção">✕</button>
+                        </div>
+                    </div>
+                    <div class="relative flex-1">
+                        <input id="ecodSelect" list="ecodList" type="text" placeholder="Digite I-Code"
+                            autocomplete="off" onfocus="this.select()"
+                            class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-4 pr-24 py-3 text-lg font-bold text-slate-700 focus:ring-4 focus:ring-blue-100 focus:outline-none transition">
+                        <datalist id="ecodList"></datalist>
+                        <div class="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-1">
+                            <button type="button" onclick="startVoiceRecognition('ecod')"
+                                class="p-2 text-slate-400 hover:text-blue-600 transition-colors"
+                                title="Falar I-Code">🎤</button>
+                            <button id="clearEcodBtn" onclick="clearEcodSelection()"
+                                class="p-2 text-slate-400 hover:text-red-500 transition-colors hidden"
+                                title="Limpar Seleção">✕</button>
+                        </div>
+                    </div>
+                    <button id="refreshBtn" onclick="refreshData()"
+                        class="bg-slate-800 text-white px-8 py-3 rounded-xl font-bold transition hover:bg-black active:scale-95 flex items-center justify-center gap-2 min-w-[140px]">
+                        <svg id="refreshIcon" xmlns="http://www.w3.org/2000/svg" width="18" height="18"
+                            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
+                            stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M23 4v6h-6" />
+                            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+                        </svg>
+                        Atualizar
+                    </button>
+                </div>
+            </div>
+<div class="glass-card p-4 rounded-2xl shadow-sm">
+    <div class="flex items-center justify-between mb-3">
+        <div><span class="text-[13px] font-bold text-slate-700 uppercase tracking-widest">Painel Prateleira</span></div>
+        <button onclick="silenciarAlarme()" class="text-xs bg-slate-100 hover:bg-slate-200 px-2 py-1 rounded-lg font-bold transition">🔇</button>
+    </div>
+    <!-- Combo para escolher a prateleira (id obrigatório: bimPrateleira) -->
+    <select id="bimPrateleira" onchange="carregarBIM()" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-blue-100 focus:outline-none mb-3">
+        <option value="P1">Prateleira P1</option>
+        <option value="P2">Prateleira P2</option>
+        <option value="P3">Prateleira P3</option>
+        <option value="P4">Prateleira P4</option>
+    </select>
+    <div id="bimGrid" class="grid grid-cols-5 gap-2"></div>
+</div>
+        </div>
+        <!-- Navegação de Abas -->
+        <div class="flex items-center border-b border-slate-200 mb-6 px-2">
+            <div class="flex gap-8">
+                <button onclick="switchTab('cards')" id="tab-cards"
+                    class="pb-3 text-sm font-bold uppercase tracking-widest tab-active transition-all">Cards
+                    Kanban</button>
+                <button onclick="switchTab('map')" id="tab-map"
+                    class="pb-3 text-sm font-bold uppercase tracking-widest text-slate-400 transition-all">Mapa de
+                    Prateleiras</button>
+                <button onclick="switchTab('gestao')" id="tab-gestao"
+                    class="pb-3 text-sm font-bold uppercase tracking-widest text-slate-400 transition-all">Gestão de
+                    Itens</button>
+            </div>
+            <div class="ml-auto pb-2 flex gap-2">
+                <button id="btnNaoLocalizados" onclick="desmarcarNaoLocalizados()"
+                    class="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-xl text-sm font-bold transition shadow-md active:scale-95">Desmarcar
+                    Não Localizados</button>
+                <button id="btnTodos" onclick="toggleTodosPrints()"
+                    class="bg-slate-700 hover:bg-slate-800 text-white px-4 py-2 rounded-xl text-sm font-bold transition shadow-md active:scale-95">Desmarcar
+                    Todos</button>
+                <button onclick="printLabels()"
+                    class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-xl text-sm font-bold transition shadow-md active:scale-95">Imprimir
+                    Etiquetas</button>
+            </div>
+        </div>
+        <!-- Conteúdos -->
+        <div id="view-cards" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6 pb-20">
+            <div class="col-span-full py-20 text-center text-slate-400 font-bold">Aguardando seleção de OS ou I-CODE...
+            </div>
+        </div>
+        <div id="view-map" class="hidden pb-20">
+            <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-8" id="shelvesContainer"></div>
+        </div>
+        <!-- GESTÃO DE ITENS -->
+        <div id="view-gestao" class="hidden pb-20">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+                <h2 class="text-lg font-bold text-slate-800">Itens Cadastrados</h2>
+                <div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+                    <div class="relative flex-1 sm:w-72">
+                        <input id="buscaItens" type="text" placeholder="Buscar por I-CODE, alternativo ou descrição..."
+                            oninput="filtrarItens()"
+                            class="w-full bg-slate-50 border border-slate-200 rounded-xl pl-9 pr-3 py-2 text-sm font-bold text-slate-700 focus:ring-2 focus:ring-blue-100 focus:outline-none">
+                        <svg class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+                            xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="11" cy="11" r="8" />
+                            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                        </svg>
+                    </div>
+                    <button onclick="abrirFormItem()"
+                        class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl text-sm font-bold transition shadow-md active:scale-95">+
+                        Novo Item</button>
+                </div>
+            </div>
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr class="bg-slate-50 text-slate-500 text-xs uppercase tracking-wider">
+                            <th class="px-4 py-3 text-left">I-CODE</th>
+                            <th class="px-4 py-3 text-left">Descrição</th>
+                            <th class="px-4 py-3 text-left">Local</th>
+                            <th class="px-4 py-3 text-left">Alternativo</th>
+                            <th class="px-4 py-3 text-right">Mínimo</th>
+                            <th class="px-4 py-3 text-right">Limite</th>
+                            <th class="px-4 py-3 text-right">Qtd</th>
+                            <th class="px-4 py-3 text-center">Status</th>
+                            <th class="px-4 py-3 text-center">Ações</th>
+                        </tr>
+                    </thead>
+                    <tbody id="itensTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <!-- Modal de Confirmação -->
+    <div id="modalOverlay"
+        class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl scale-100 transition-all">
+            <h2 id="modalTitle" class="text-2xl font-bold text-slate-800 mb-2">Ação</h2>
+            <p id="modalContent" class="mb-8 text-slate-500 font-medium leading-relaxed"></p>
+            <div class="grid grid-cols-2 gap-4">
+                <button onclick="closeModal()"
+                    class="px-4 py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold active:scale-95 transition">Voltar</button>
+                <button id="modalConfirmBtn"
+                    class="px-4 py-4 bg-blue-600 text-white rounded-2xl font-bold shadow-lg shadow-blue-100 active:scale-95 transition">Confirmar</button>
+            </div>
+        </div>
+    </div>
+    <!-- Modal de Formulário de Item -->
+    <div id="formOverlay"
+        class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+        <div
+            class="bg-white rounded-3xl p-8 w-full max-w-lg shadow-2xl scale-100 transition-all max-h-[90vh] overflow-y-auto">
+            <h2 id="formTitle" class="text-2xl font-bold text-slate-800 mb-4">Novo Item</h2>
+            <div class="grid grid-cols-2 gap-4">
+                <div class="col-span-1">
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">I-CODE *</label>
+                    <input id="fEcod" type="text"
+                        class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-bold text-slate-700 focus:ring-2 focus:ring-blue-100 focus:outline-none">
+                </div>
+                <div class="col-span-1">
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Local (Prateleira)</label>
+                    <select id="fLocal"
+                        class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-bold text-slate-700 focus:ring-2 focus:ring-blue-100 focus:outline-none">
+                        <option value="">Sem prateleira (NÃO LOCALIZADO)</option>
+                    </select>
+                </div>
+                <div class="col-span-2">
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Descrição</label>
+                    <input id="fDescricao" type="text"
+                        class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-bold text-slate-700 focus:ring-2 focus:ring-blue-100 focus:outline-none">
+                </div>
+                <div class="col-span-2">
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Código Alternativo (separar por
+                        /)</label>
+                    <input id="fAlternativo" type="text" placeholder="Ex: 1020/1011/1012"
+                        class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-bold text-slate-700 focus:ring-2 focus:ring-blue-100 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Mínimo</label>
+                    <input id="fMinimo" type="number" value="10"
+                        class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-bold text-slate-700 focus:ring-2 focus:ring-blue-100 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Limite</label>
+                    <input id="fLimite" type="number" value="100"
+                        class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-bold text-slate-700 focus:ring-2 focus:ring-blue-100 focus:outline-none">
+                </div>
+                <div class="col-span-2">
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Quantidade em Estoque</label>
+                    <input id="fQuantidade" type="number" value="0"
+                        class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-bold text-slate-700 focus:ring-2 focus:ring-blue-100 focus:outline-none">
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-4 mt-6">
+                <button onclick="fecharFormItem()"
+                    class="px-4 py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold active:scale-95 transition">Cancelar</button>
+                <button onclick="salvarItem()"
+                    class="px-4 py-4 bg-blue-600 text-white rounded-2xl font-bold shadow-lg shadow-blue-100 active:scale-95 transition">Salvar</button>
+            </div>
+        </div>
+    </div>
+    <!-- Modal de Retirada (confirma quantidade e baixa estoque) -->
+    <div id="retiradaOverlay"
+        class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden z-50 flex items-center justify-center p-4">
+        <div class="bg-white rounded-3xl p-8 w-full max-w-md shadow-2xl scale-100 transition-all">
+            <h2 class="text-2xl font-bold text-slate-800 mb-2">Baixa de Material</h2>
+            <p id="retiradaInfo" class="mb-6 text-slate-500 font-medium leading-relaxed"></p>
+            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Quantidade a retirar</label>
+            <input id="retiradaQtd" type="number" min="1" value="1"
+                class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-bold text-slate-700 focus:ring-2 focus:ring-blue-100 focus:outline-none mb-6">
+            <div class="grid grid-cols-2 gap-4">
+                <button onclick="fecharRetirada()"
+                    class="px-4 py-4 bg-slate-100 text-slate-600 rounded-2xl font-bold active:scale-95 transition">Voltar</button>
+                <button onclick="confirmarRetirada()"
+                    class="px-4 py-4 bg-red-600 text-white rounded-2xl font-bold shadow-lg shadow-red-100 active:scale-95 transition">Confirmar
+                    Retirada</button>
+            </div>
+        </div>
+    </div>
+    <div id="print-section"></div>
+    <script>
+        const API_URL = "https://script.google.com/macros/s/AKfycbyYHQpycLi69NwCM8k-S1V3g9lvoHnGBopumEvbEMA4UVKPxiLQXnWzSpII1SRP0te-Kw/exec";
+        const audioBIM = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
+        audioBIM.loop = true;
+        let audioLiberado = false;
+        const params = new URLSearchParams(window.location.search);
+        const osURL = params.get("os");
+        let rawData = [];
+        let currentOS = "";
+        let currentEcod = "";
+        let lastPolledOS = "0";
+        let pollingInterval;
+        const urlParams = new URLSearchParams(window.location.search);
+        const osDaURL = urlParams.get("os");
+        const DEMO_CODIGOS_MATRIZ = ["1010", "2020", "3030", "4040", "5050", "6060", "7070", "8080", "9090"];
+        const DEMO_CODIGOS_FORA = ["1111", "2222", "3333", "4444", "5555"];
+        const DEMO_TOTAL_ITENS = 100;
+        const DEMO_NUM_OS = 5;
+        const DEMO_OS_INICIAL = 1001;
+        const DEMO_PCT_FORA = 0.2;
+        const LOCAIS_MAPA = (() => {
+            const locais = [];
+            const linhas = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
+            for (let p = 1; p <= 4; p++) {
+                linhas.forEach(r => {
+                    for (let c = 1; c <= 5; c++) {
+                        locais.push(`P${p} ${r}${c}`);
+                    }
+                });
+            }
+            return locais;
+        })();
+        let descMap = {};
+        let itensGestao = [];
+        let itensMap = {};
+        let editandoEcod = null;
+        let retiradaContexto = null;
+
+        document.addEventListener('click', async () => {
+            if (audioLiberado) return;
+            try {
+                audioBIM.volume = 0; await audioBIM.play(); audioBIM.pause(); audioBIM.currentTime = 0; audioBIM.volume = 1;
+                audioLiberado = true; console.log('Áudio liberado');
+            } catch (e) { console.log('Falha ao liberar áudio', e); }
+        }, { once: true });
+        window.onload = async () => {
+            await sendPost({ action: "clearApp" });
+            await fetchInitialData();
+            await carregarDescricoes();
+            await carregarItens();
+            setupFileListeners();
+            generateEmptyMap();
+            carregarBIM();
+            setInterval(carregarBIM, 3000);
+            if (osDaURL) {
+                currentOS = osDaURL;
+                setTimeout(() => {
+                    const select = document.getElementById('osSelect');
+                    for (let i = 0; i < select.options.length; i++) {
+                        if (select.options[i].value === osDaURL) { select.selectedIndex = i; handleOSSelection(osDaURL); break; }
+                    }
+                }, 1000);
+            }
+        };
+        function switchTab(view) {
+            document.getElementById('view-cards').classList.toggle('hidden', view !== 'cards');
+            document.getElementById('view-map').classList.toggle('hidden', view !== 'map');
+            document.getElementById('view-gestao').classList.toggle('hidden', view !== 'gestao');
+            document.getElementById('tab-cards').className = view === 'cards' ? 'pb-3 text-sm font-bold uppercase tracking-widest tab-active' : 'pb-3 text-sm font-bold uppercase tracking-widest text-slate-400';
+            document.getElementById('tab-map').className = view === 'map' ? 'pb-3 text-sm font-bold uppercase tracking-widest tab-active' : 'pb-3 text-sm font-bold uppercase tracking-widest text-slate-400';
+            document.getElementById('tab-gestao').className = view === 'gestao' ? 'pb-3 text-sm font-bold uppercase tracking-widest tab-active' : 'pb-3 text-sm font-bold uppercase tracking-widest text-slate-400';
+            if (view === 'map' && !currentOS && !currentEcod) updateMapAll();
+            if (view === 'gestao') carregarItens();
+        }
+        function setApiStatus(status, label = "") {
+            const indicator = document.getElementById('apiIndicator');
+            const text = document.getElementById('apiText');
+            indicator.className = "w-3 h-3 rounded-full " + (status === 'loading' ? 'bg-blue-500 animate-pulse' : status === 'success' ? 'bg-green-500' : 'bg-red-500');
+            text.textContent = label || (status === 'loading' ? 'CARREGANDO' : status === 'success' ? 'ONLINE' : 'OFFLINE');
+        }
+async function fetchInitialData() {
+    setApiStatus('loading');
+    try {
+        const response = await fetch(
+            `${API_URL}?action=getImportData&t=${Date.now()}`
+        );
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        const texto = await response.text();
+        console.log("Resposta do Apps Script:", texto);
+        const data = JSON.parse(texto);
+        rawData = data.map(item => ({
+            ...item,
+            os: String(item.os).trim(),
+            ecod: String(item.ecod).trim(),
+            local: String(item.local || "").toUpperCase().trim()
+        }));
+        populateOSSelect(rawData);
+        setApiStatus('success');
+    } catch (e) {
+        console.error("ERRO REAL AO CARREGAR OS:", e);
+        setApiStatus('error', 'ERRO CONEXÃO');
+    }
+}
+        async function carregarDescricoes() {
+            try {
+                const response = await fetch(`${API_URL}?action=getDescricoes&t=${Date.now()}`);
+                const data = await response.json();
+                descMap = {};
+                data.forEach(item => { if (item.codigo) descMap[item.codigo] = item.descricao; });
+            } catch (e) { console.log('Erro ao carregar descrições', e); }
+        }
+        // ===== GESTÃO DE ITENS =====
+        async function carregarItens() {
+            try {
+                const response = await fetch(`${API_URL}?action=getItens&t=${Date.now()}`);
+                itensGestao = await response.json();
+                itensMap = {};
+                itensGestao.forEach(i => { itensMap[i.ecod] = i; });
+                populateEcodSelect();
+                renderItens();
+            } catch (e) { console.log('Erro ao carregar itens', e); }
+        }
+        function renderItens() {
+            const tbody = document.getElementById('itensTableBody');
+            if (!itensGestao.length) {
+                tbody.innerHTML = '<tr><td colspan="9" class="px-4 py-8 text-center text-slate-400 font-bold">Nenhum item cadastrado</td></tr>';
+                return;
+            }
+            tbody.innerHTML = itensGestao.map(item => {
+                const statusClass = item.status === 'VERMELHO' ? 'status-vermelho' : item.status === 'AMARELO' ? 'status-amarelo' : 'status-verde';
+                return `<tr class="border-t border-slate-100 hover:bg-slate-50">
+                    <td class="px-4 py-3 font-black text-blue-700">${item.ecod}</td>
+                    <td class="px-4 py-3 text-slate-700">${item.descricao || '<span class="text-slate-400">Sem descrição</span>'}</td>
+                    <td class="px-4 py-3 text-slate-600">${item.local || '<span class="text-red-500 font-bold">NÃO LOCALIZADO</span>'}</td>
+                    <td class="px-4 py-3 text-slate-500">${item.alternativo || '-'}</td>
+                    <td class="px-4 py-3 text-right text-slate-600">${item.minimo}</td>
+                    <td class="px-4 py-3 text-right text-slate-600">${item.limite}</td>
+                    <td class="px-4 py-3 text-right font-bold text-slate-700">${item.quantidade}</td>
+                    <td class="px-4 py-3 text-center"><span class="status-badge ${statusClass}">${item.status || 'VERDE'}</span></td>
+                    <td class="px-4 py-3 text-center whitespace-nowrap">
+                        <button onclick="abrirFormItem('${item.ecod}')" class="text-blue-600 hover:text-blue-800 font-bold text-xs mr-2">Editar</button>
+                        <button onclick="excluirItem('${item.ecod}')" class="text-red-600 hover:text-red-800 font-bold text-xs">Excluir</button>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+        function filtrarItens() {
+            const termo = document.getElementById('buscaItens').value.trim().toUpperCase();
+            const tbody = document.getElementById('itensTableBody');
+            if (!termo) { renderItens(); return; }
+            const filtrados = itensGestao.filter(item => {
+                return (item.ecod || '').toUpperCase().includes(termo)
+                    || (item.alternativo || '').toUpperCase().includes(termo)
+                    || (item.descricao || '').toUpperCase().includes(termo);
+            });
+            if (!filtrados.length) {
+                tbody.innerHTML = '<tr><td colspan="9" class="px-4 py-8 text-center text-slate-400 font-bold">Nenhum item encontrado</td></tr>';
+                return;
+            }
+            tbody.innerHTML = filtrados.map(item => {
+                const statusClass = item.status === 'VERMELHO' ? 'status-vermelho' : item.status === 'AMARELO' ? 'status-amarelo' : 'status-verde';
+                return `<tr class="border-t border-slate-100 hover:bg-slate-50">
+                    <td class="px-4 py-3 font-black text-blue-700">${item.ecod}</td>
+                    <td class="px-4 py-3 text-slate-700">${item.descricao || '<span class="text-slate-400">Sem descrição</span>'}</td>
+                    <td class="px-4 py-3 text-slate-600">${item.local || '<span class="text-red-500 font-bold">NÃO LOCALIZADO</span>'}</td>
+                    <td class="px-4 py-3 text-slate-500">${item.alternativo || '-'}</td>
+                    <td class="px-4 py-3 text-right text-slate-600">${item.minimo}</td>
+                    <td class="px-4 py-3 text-right text-slate-600">${item.limite}</td>
+                    <td class="px-4 py-3 text-right font-bold text-slate-700">${item.quantidade}</td>
+                    <td class="px-4 py-3 text-center"><span class="status-badge ${statusClass}">${item.status || 'VERDE'}</span></td>
+                    <td class="px-4 py-3 text-center whitespace-nowrap">
+                        <button onclick="abrirFormItem('${item.ecod}')" class="text-blue-600 hover:text-blue-800 font-bold text-xs mr-2">Editar</button>
+                        <button onclick="excluirItem('${item.ecod}')" class="text-red-600 hover:text-red-800 font-bold text-xs">Excluir</button>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+        function abrirFormItem(ecod) {
+            editandoEcod = ecod || null;
+            document.getElementById('formTitle').textContent = ecod ? 'Editar Item' : 'Novo Item';
+            const usados = new Set(
+                itensGestao
+                    .filter(i => i.ecod !== ecod && i.local)
+                    .map(i => i.local.toUpperCase().trim())
+            );
+            const select = document.getElementById('fLocal');
+            select.innerHTML = '<option value="">Sem prateleira (NÃO LOCALIZADO)</option>';
+            LOCAIS_MAPA.forEach(local => {
+                if (!usados.has(local)) {
+                    const opt = document.createElement('option');
+                    opt.value = local;
+                    opt.textContent = local;
+                    select.appendChild(opt);
+                }
+            });
+            if (ecod) {
+                const item = itensGestao.find(i => i.ecod === ecod);
+                if (item) {
+                    document.getElementById('fEcod').value = item.ecod;
+                    document.getElementById('fDescricao').value = item.descricao;
+                    document.getElementById('fAlternativo').value = item.alternativo;
+                    document.getElementById('fMinimo').value = item.minimo;
+                    document.getElementById('fLimite').value = item.limite;
+                    document.getElementById('fQuantidade').value = item.quantidade;
+                    if (item.local) {
+                        const localAtual = item.local.toUpperCase().trim();
+                        if (!usados.has(localAtual)) {
+                            const opt = document.createElement('option');
+                            opt.value = localAtual;
+                            opt.textContent = localAtual;
+                            select.appendChild(opt);
+                        }
+                        select.value = localAtual;
+                    }
+                }
+            } else {
+                document.getElementById('fEcod').value = '';
+                document.getElementById('fDescricao').value = '';
+                document.getElementById('fAlternativo').value = '';
+                document.getElementById('fMinimo').value = 10;
+                document.getElementById('fLimite').value = 100;
+                document.getElementById('fQuantidade').value = 0;
+            }
+            document.getElementById('formOverlay').classList.remove('hidden');
+        }
+        function fecharFormItem() {
+            document.getElementById('formOverlay').classList.add('hidden');
+            editandoEcod = null;
+        }
+        async function salvarItem() {
+            const ecod = document.getElementById('fEcod').value.trim();
+            if (!ecod) { alert('Informe o I-CODE'); return; }
+            const payload = {
+                ecod: ecod,
+                descricao: document.getElementById('fDescricao').value.trim(),
+                local: document.getElementById('fLocal').value.trim(),
+                alternativo: document.getElementById('fAlternativo').value.trim(),
+                minimo: Number(document.getElementById('fMinimo').value) || 0,
+                limite: Number(document.getElementById('fLimite').value) || 0,
+                quantidade: Number(document.getElementById('fQuantidade').value) || 0
+            };
+            setApiStatus('loading', 'SALVANDO...');
+            if (editandoEcod) {
+                payload.ecodOriginal = editandoEcod;
+                await sendPost({ action: 'editItem', ...payload });
+            } else {
+                await sendPost({ action: 'addItem', ...payload });
+            }
+            fecharFormItem();
+            await carregarItens();
+            await carregarDescricoes();
+            setApiStatus('success', 'SALVO');
+        }
+        function excluirItem(ecod) {
+            openModal("Excluir Item", `Excluir o item ${ecod} da Matriz e Descrições?`, async () => {
+                setApiStatus('loading', 'EXCLUINDO...');
+                await sendPost({ action: 'deleteItem', ecod });
+                await carregarItens();
+                await carregarDescricoes();
+                setApiStatus('success', 'EXCLUÍDO');
+            });
+        }
+        function populateOSSelect(data) {
+            const list = document.getElementById('osList');
+            const uniqueOS = [...new Set(data.map(item => item.os))].filter(os => os && os !== "undefined");
+            list.innerHTML = '';
+            uniqueOS.sort().forEach(os => {
+                const opt = document.createElement('option'); opt.value = os; opt.label = `OS ${os}`; list.appendChild(opt);
+            });
+            const input = document.getElementById('osSelect');
+            input.oninput = (e) => { currentOS = e.target.value.trim(); document.getElementById('clearOSBtn').classList.toggle('hidden', !currentOS); aplicarFiltros(); };
+            if (currentOS) input.value = currentOS;
+        }
+        function handleOSSelection(os) { currentOS = os; document.getElementById('clearOSBtn').classList.toggle('hidden', !os); aplicarFiltros(); }
+        function clearOSSelection() { document.getElementById('osSelect').value = ""; handleOSSelection(""); }
+function populateEcodSelect() {
+    const list = document.getElementById('ecodList');
+    const disponiveis = itensGestao.filter(i => i.local);
+    const valores = new Set();
+    disponiveis.forEach(i => {
+        valores.add(i.ecod);
+        if (i.alternativo) {
+            i.alternativo.split('/').forEach(a => { const t = a.trim(); if (t) valores.add(t); });
+        }
+    });
+    const unicos = [...valores].filter(v => v && v !== "undefined").sort();
+    list.innerHTML = '';
+    unicos.forEach(cod => {
+        const opt = document.createElement('option'); opt.value = cod; list.appendChild(opt);
+    });
+    const input = document.getElementById('ecodSelect');
+    input.oninput = (e) => { currentEcod = e.target.value.trim(); document.getElementById('clearEcodBtn').classList.toggle('hidden', !currentEcod); aplicarFiltros(); };
+    if (currentEcod) input.value = currentEcod;
+}
+        function clearEcodSelection() { currentEcod = ""; document.getElementById('ecodSelect').value = ""; document.getElementById('clearEcodBtn').classList.add('hidden'); aplicarFiltros(); }
+        function renderKanban(items) {
+            const board = document.getElementById('view-cards');
+            board.innerHTML = items.length ? '' : '<div class="col-span-full py-20 text-center text-slate-300 font-bold uppercase tracking-widest">Nenhum item pendente</div>';
+            items.forEach(item => {
+                const card = document.createElement('div');
+                card.className = "glass-card p-4 rounded-2xl shadow-sm border-l-[6px] border-l-blue-500 hover:shadow-md transition-all duration-300";
+                card.innerHTML = `
+                    <div class="flex justify-between items-start mb-2">
+                        <div class="flex-1">
+                            <div class="mb-2"><span class="text-[10px] font-black text-blue-700 bg-blue-50 px-3 py-1 rounded-full tracking-wider">OS ${item.os}</span></div>
+                            <span class="text-[10px] font-black text-blue-600 bg-blue-50 px-3 py-1 rounded-full tracking-wider">I-CODE: ${item.ecod}</span>
+                            <h3 class="font-bold text-slate-800 text-sm mt-2 leading-tight">${item.descricao}</h3>
+                        </div>
+                        <div class="ml-4 flex flex-col items-center gap-3">
+                             <div class="flex flex-col items-center">
+                                <label class="text-[9px] font-black text-slate-400 uppercase mb-1">Retirar</label>
+                                <input type="checkbox" class="checkbox-custom" onclick="abrirRetirada('${item.os}', '${item.ecod}', '${item.descricao}', ${item.qtd})">
+                            </div>
+                            <div class="flex flex-col items-center">
+                                <label class="text-[9px] font-black text-emerald-600 uppercase mb-1">Print</label>
+                                <input type="checkbox" class="print-checkbox w-5 h-5 accent-emerald-600" data-os="${item.os}" data-ecod="${item.ecod}" checked>
+                            </div>
+                        </div>
+                    </div>
+                        <div class="flex items-center justify-between mb-3">
+                            <div class="flex items-center gap-2">
+                                <div class="w-2.5 h-2.5 rounded-full ${item.local === 'NÃO LOCALIZADO' ? 'bg-red-500' : 'bg-emerald-500'}"></div>
+                                <span class="text-xs font-bold uppercase ${item.local === 'NÃO LOCALIZADO' ? 'text-red-500' : 'text-slate-400'}">${item.local || 'SEM LOCAL'}</span>
+                            </div>
+                            <span class="text-[10px] font-black uppercase tracking-wider text-slate-400 bg-slate-100 px-2 py-1 rounded-lg">Lote: ${item.lote || '-'}</span>
+                        </div>
+                    <div class="grid grid-cols-2 gap-2 mt-3">
+                        <div class="bg-blue-50 p-2 rounded-xl border border-blue-100">
+                            <div class="text-[10px] text-blue-400 font-black uppercase mb-1">Pedido OS</div>
+                            <div class="font-black text-blue-700 text-lg">${item.qtd}</div>
+                        </div>
+                        <div class="bg-slate-50 p-2 rounded-xl border border-slate-200">
+                            <div class="text-[10px] text-slate-400 font-black uppercase mb-1">Estoque</div>
+                            <div class="font-black text-slate-700 text-lg">${item.totalEstoque}</div>
+                        </div>
+                    </div>`;
+                board.appendChild(card);
+            });
+        }
+        // ===== CARD FICTÍCIO (I-CODE sem OS) =====
+        function renderCardFicticio(item) {
+            const board = document.getElementById('view-cards');
+            board.innerHTML = '';
+            const card = document.createElement('div');
+            card.className = "glass-card p-4 rounded-2xl shadow-sm border-l-[6px] border-l-emerald-500 hover:shadow-md transition-all duration-300";
+            card.innerHTML = `
+                <div class="flex justify-between items-start mb-2">
+                    <div class="flex-1">
+                        <span class="text-[10px] font-black text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full tracking-wider">SEM OS - CONSULTA</span>
+                        <div class="mt-2">
+                            <span class="text-[10px] font-black text-blue-600 bg-blue-50 px-3 py-1 rounded-full tracking-wider">I-CODE: ${item.ecod}</span>
+                        </div>
+                        <h3 class="font-bold text-slate-800 text-sm mt-2 leading-tight">${item.descricao || 'Item não cadastrado'}</h3>
+                    </div>
+                    <div class="ml-4 flex flex-col items-center">
+                        <label class="text-[9px] font-black text-slate-400 uppercase mb-1">Retirar</label>
+                        <input type="checkbox" class="checkbox-custom" onclick="abrirRetirada('SEM OS', '${item.ecod}', '${item.descricao || ''}', 1)">
+                    </div>
+                </div>
+                <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center gap-2">
+                        <div class="w-2.5 h-2.5 rounded-full ${item.local ? 'bg-emerald-500' : 'bg-red-500'}"></div>
+                        <span class="text-xs font-bold uppercase ${item.local ? 'text-slate-400' : 'text-red-500'}">${item.local || 'NÃO LOCALIZADO'}</span>
+                    </div>
+                    <span class="text-[10px] font-black uppercase tracking-wider text-slate-400 bg-slate-100 px-2 py-1 rounded-lg">Estoque: ${item.quantidade}</span>
+                </div>
+                <div class="flex items-end gap-2 mt-3">
+                    <div class="flex-1">
+                        <label class="text-[10px] text-slate-400 font-black uppercase mb-1">Quantidade a sinalizar</label>
+                        <input id="qtdFicticia" type="number" min="1" value="1" oninput="atualizarFicticio('${item.ecod}')" class="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 font-bold text-slate-700 focus:ring-2 focus:ring-blue-100 focus:outline-none">
+                    </div>
+                    <button onclick="enviarFicticio('${item.ecod}')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl text-sm font-bold transition shadow-md active:scale-95">Sinalizar Posição</button>
+                </div>`;
+            board.appendChild(card);
+            // Sinaliza no APP direto com quantidade 1
+            enviarFicticio(item.ecod);
+        }
+        async function enviarFicticio(ecod) {
+            const item = resolverItemPorCodigo(ecod);
+            if (!item) return;
+            const qtd = Number(document.getElementById('qtdFicticia') ? document.getElementById('qtdFicticia').value : 1) || 1;
+            await sendPost({
+                action: 'syncApp',
+                data: [{
+                    os: 'SEM OS',
+                    ecod: item.ecod,
+                    qtd: qtd,
+                    totalEstoque: item.quantidade,
+                    local: item.local || 'NÃO LOCALIZADO'
+                }]
+            });
+        }
+        function atualizarFicticio(ecod) {
+            enviarFicticio(ecod);
+        }
+        // ===== RETIRADA (confirma quantidade e baixa estoque) =====
+        function abrirRetirada(os, ecod, descricao, qtdPadrao) {
+            const checkbox = event.target;
+            if (!checkbox.checked) return;
+            retiradaContexto = { os, ecod, descricao };
+            document.getElementById('retiradaInfo').textContent = `Confirmar baixa do item ${ecod}${os !== 'SEM OS' ? ' (OS ' + os + ')' : ''}? A quantidade será subtraída do estoque.`;
+            document.getElementById('retiradaQtd').value = qtdPadrao || 1;
+            document.getElementById('retiradaOverlay').classList.remove('hidden');
+        }
+        function fecharRetirada() {
+            document.getElementById('retiradaOverlay').classList.add('hidden');
+            retiradaContexto = null;
+            // Desmarca o checkbox de retirada
+            document.querySelectorAll('.checkbox-custom').forEach(cb => { cb.checked = false; });
+        }
+        async function confirmarRetirada() {
+            if (!retiradaContexto) return;
+            const { os, ecod, descricao } = retiradaContexto;
+            const qtd = Number(document.getElementById('retiradaQtd').value) || 1;
+            setApiStatus('loading', 'BAIXANDO...');
+            await sendPost({ action: 'baixarEstoque', ecod, qtd });
+            if (os && os !== 'SEM OS') {
+                await sendPost({ action: 'removeItem', os, ecod, descricao });
+            }
+            fecharRetirada();
+            await fetchInitialData();
+            await carregarItens();
+            aplicarFiltros();
+            setApiStatus('success', 'BAIXADO');
+        }
+        function generateEmptyMap() {
+            const container = document.getElementById('shelvesContainer');
+            container.innerHTML = '';
+            const rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
+            for (let p = 1; p <= 4; p++) {
+                const shelf = document.createElement('div');
+                shelf.className = "bg-white p-4 rounded-3xl border border-slate-100 shadow-sm";
+                shelf.innerHTML = `<h4 class="text-center font-black text-slate-400 mb-4 uppercase tracking-widest text-[10px]">Prateleira P${p}</h4>`;
+                const grid = document.createElement('div');
+                grid.className = "shelf-grid";
+                rows.forEach(r => {
+                    for (let c = 1; c <= 5; c++) {
+                        const bin = document.createElement('div');
+                        bin.id = `P${p}-${r}${c}`; bin.className = "bin";
+                        bin.innerHTML = `<span>${r}${c}</span>`;
+                        grid.appendChild(bin);
+                    }
+                });
+                shelf.appendChild(grid);
+                container.appendChild(shelf);
+            }
+        }
+        function resetMap() { document.querySelectorAll('.bin').forEach(b => { b.classList.remove('active', 'ocupada'); b.innerHTML = `<span>${b.id.split('-')[1]}</span>`; b.title = ''; }); }
+        // Mapa geral: gavetas ocupadas em cinza claro (sem seleção)
+        function updateMapAll() {
+            resetMap();
+            itensGestao.forEach(item => {
+                if (!item.local) return;
+                const normalizedId = item.local.replace(/\s+/g, '-').replace(/([P]\d)([A-L])/, '$1-$2');
+                const targetBin = document.getElementById(normalizedId);
+                if (targetBin) {
+                    targetBin.classList.add('ocupada');
+                    targetBin.innerHTML = `<span class="text-[9px] font-black truncate">${item.ecod}</span><span class="bin-pos">${item.local}</span>`;
+                    const alt = item.alternativo ? ' | Alt: ' + item.alternativo : '';
+                    targetBin.title = `${item.ecod}${alt}`;
+                }
+            });
+        }
+        // Mapa com seleção: gavetas relevantes em AZUL
+        function updateMap(activeItems) {
+            resetMap();
+            activeItems.forEach(item => {
+                let loc = item.local;
+                if (!loc || loc === "NÃO LOCALIZADO") return;
+                const normalizedId = loc.replace(/\s+/g, '-').replace(/([P]\d)([A-L])/, '$1-$2');
+                const targetBin = document.getElementById(normalizedId);
+                if (targetBin) {
+                    targetBin.classList.add('active');
+                    targetBin.innerHTML = `<span class="text-[9px] font-black truncate">${item.ecod}</span><span class="bin-pos">${loc}</span>`;
+                    const meta = itensMap[item.ecod];
+                    const alt = (meta && meta.alternativo) ? ' | Alt: ' + meta.alternativo : '';
+                    targetBin.title = `${item.ecod}${alt}`;
+                }
+            });
+        }
+        function printLabels() {
+            const cardsVisiveis = document.querySelectorAll('#view-cards .glass-card');
+            const selected = [];
+            cardsVisiveis.forEach(card => {
+                const checkbox = card.querySelector('.print-checkbox:checked');
+                if (checkbox) selected.push(checkbox);
+            });
+            if (!selected.length) { openModal("Nenhum item selecionado", "Marque ao menos um item para imprimir.", () => { }); return; }
+            const printSec = document.getElementById('print-section');
+            printSec.innerHTML = '';
+            selected.forEach(cb => {
+                const ecod = cb.dataset.ecod;
+                const os = cb.dataset.os;
+                const item = rawData.find(i => i.ecod === ecod && i.os === os);
+                if (!item) return;
+                const label = document.createElement('div');
+                label.className = 'label-to-print';
+                label.innerHTML = `
+            <div style="display:flex;justify-content:space-between;font-size:11px;font-weight:700;">
+                <span>OS: ${os}</span><span>QTDE: ${item.qtd || 0}</span>
+            </div>
+            <div style="font-size:11px;font-weight:700;margin:2mm 0;">ECODE: ${ecod}</div>
+            <div style="display:flex;justify-content:space-between;font-size:11px;font-weight:700;">
+                <span>LOTE: ${item.lote || '-'}</span><span>LOCAL: ${item.local || '-'}</span>
+            </div>`;
+                printSec.appendChild(label);
+            });
+            window.print();
+        }
+        async function sendPost(payload) {
+            try { await fetch(API_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) }); return true; }
+            catch (e) { return false; }
+        }
+        function gerarOSDemo() {
+            const hoje = new Date().toLocaleDateString('pt-BR');
+            const payload = [];
+            const itensPorOS = Math.ceil(DEMO_TOTAL_ITENS / DEMO_NUM_OS);
+            for (let o = 0; o < DEMO_NUM_OS; o++) {
+                const os = `OS${DEMO_OS_INICIAL + o}BR`;
+                for (let i = 0; i < itensPorOS; i++) {
+                    const usarFora = Math.random() < DEMO_PCT_FORA;
+                    const pool = usarFora ? DEMO_CODIGOS_FORA : DEMO_CODIGOS_MATRIZ;
+                    const icode = pool[Math.floor(Math.random() * pool.length)];
+                    const descricao = descMap[icode] || "Item não cadastrado";
+                    const codItem = String(100000 + Math.floor(Math.random() * 900000));
+                    const qtdRetirada = 10 + Math.floor(Math.random() * 490);
+                    const qtdUN = 10 + Math.floor(Math.random() * 90);
+                    const qtdTotal = qtdUN;
+                    const pnItem = "PN" + (1000 + Math.floor(Math.random() * 9000));
+                    const pnLM = "PN" + (1000 + Math.floor(Math.random() * 9000));
+                    const lote = "L" + (100 + Math.floor(Math.random() * 900));
+                    payload.push([hoje, os, codItem, pnItem, qtdRetirada, icode, "", pnLM, descricao, qtdUN, qtdTotal, lote]);
+                }
+            }
+            openModal("Gerar OS Demo", `Gerar ${payload.length} itens em ${DEMO_NUM_OS} OS distintas (OS${DEMO_OS_INICIAL}BR a OS${DEMO_OS_INICIAL + DEMO_NUM_OS - 1}BR) no ImportCSV?`, async () => {
+                setApiStatus('loading', 'GERANDO...');
+                const ok = await sendPost({ action: 'ImportCSV', payload });
+                if (ok) { setApiStatus('success', 'GERADO'); location.reload(); }
+                else { setApiStatus('error', 'FALHA'); }
+            });
+        }
+        function openModal(t, c, cb, onCancel) {
+            document.getElementById('modalTitle').textContent = t;
+            document.getElementById('modalContent').textContent = c;
+            document.getElementById('modalOverlay').classList.remove('hidden');
+            document.getElementById('modalConfirmBtn').onclick = () => { cb(); closeModal(); };
+            window.currentCancel = onCancel;
+        }
+        function closeModal() {
+            document.getElementById('modalOverlay').classList.add('hidden');
+            if (window.currentCancel) window.currentCancel();
+        }
+        function deleteDataPrompt() {
+            openModal("Limpar Tudo", "Apagar todos os registros?", async () => {
+                setApiStatus('loading', 'LIMPANDO...');
+                await sendPost({ action: 'deleteImport' });
+                await sendPost({ action: 'clearApp' });
+                location.reload();
+            });
+        }
+        function refreshData() { location.reload(); }
+        function setupFileListeners() {
+            document.getElementById('fileInput').onchange = (e) => {
+                const file = e.target.files[0];
+                const reader = new FileReader();
+                reader.onload = async (ev) => {
+                    const workbook = XLSX.read(new Uint8Array(ev.target.result), { type: 'array' });
+                    const jsonData = XLSX.utils.sheet_to_json(workbook.Sheets[workbook.SheetNames[0]]);
+                    const mapped = jsonData.map(row => [
+                        row["Dt. Recebto"] || "", String(row["Nº OS"] || "").trim(), String(row["Cód.Item"] || "").trim(), String(row["PN Item"] || "").trim(),
+                        row["Qtde Total LM"] || 0, String(row["Código LM"] || "").trim(), row["Tipo LM"] || "", row["PN LM"] || "",
+                        row["Descrição LM"] || "", row["Qtde UN LM"] || "", row["Qtde Total LM"] || 0, row["Lote"] || ""
+                    ]).filter(r => r[1]);
+                    setApiStatus('loading', 'IMPORTANDO...');
+                    if (await sendPost({ action: 'ImportCSV', payload: mapped })) location.reload();
+                };
+                reader.readAsArrayBuffer(file);
+            };
+        }
+        async function aplicarFiltros() {
+            if (!currentOS && !currentEcod) {
+                renderKanban([]);
+                updateMapAll();
+                await sendPost({ action: 'clearApp' });
+                return;
+            }
+            if (currentEcod && !currentOS) {
+                const item = resolverItemPorCodigo(currentEcod);
+                if (item) {
+                    renderCardFicticio(item);
+                    updateMap([item]);
+                } else {
+                    renderKanban([]);
+                    updateMapAll();
+                }
+                return;
+            }
+            let filtrados = [...rawData];
+            if (currentOS) filtrados = filtrados.filter(item => String(item.os).toUpperCase().includes(currentOS.toUpperCase()));
+            if (currentEcod) filtrados = filtrados.filter(item => String(item.ecod).toUpperCase().includes(currentEcod));
+            renderKanban(filtrados);
+            updateMap(filtrados);
+            await sendPost({ action: 'syncApp', data: filtrados });
+        }
+        let naoLocalizadosDesmarcados = false;
+        let todosDesmarcados = false;
+        function desmarcarNaoLocalizados() {
+            const cards = document.querySelectorAll('#view-cards .glass-card');
+            cards.forEach(card => {
+                const localSpan = card.querySelector('.text-xs.font-bold.uppercase');
+                const checkbox = card.querySelector('.print-checkbox');
+                if (!localSpan || !checkbox) return;
+                const textoLocal = localSpan.textContent.trim();
+                if (textoLocal === 'NÃO LOCALIZADO') checkbox.checked = naoLocalizadosDesmarcados;
+            });
+            naoLocalizadosDesmarcados = !naoLocalizadosDesmarcados;
+            document.getElementById('btnNaoLocalizados').textContent = naoLocalizadosDesmarcados ? 'Marcar Não Localizados' : 'Desmarcar Não Localizados';
+        }
+        function toggleTodosPrints() {
+            const checkboxes = document.querySelectorAll('#view-cards .print-checkbox');
+            checkboxes.forEach(cb => { cb.checked = todosDesmarcados; });
+            todosDesmarcados = !todosDesmarcados;
+            document.getElementById('btnTodos').textContent = todosDesmarcados ? 'Marcar Todos' : 'Desmarcar Todos';
+        }
+        let ultimoStatusBIM = {};
+async function carregarBIM() {
+    try {
+        await carregarItens();
+        const grid = document.getElementById('bimGrid');
+        grid.innerHTML = '';
+        // Prateleira selecionada no combo
+        const selPrateleira = document.getElementById('bimPrateleira');
+const prateleiraSel = selPrateleira ? selPrateleira.value : 'P1';
+        // Só as gavetas ocupadas da prateleira selecionada
+        const ocupadas = itensGestao.filter(i => i.local && i.local.toUpperCase().startsWith(prateleiraSel));
+        let existeAlerta = false;
+        let novoAlerta = false;
+        if (ocupadas.length === 0) {
+            grid.innerHTML = '<div class="col-span-5 text-center text-[10px] font-bold text-slate-300 uppercase py-4">Sem gavetas ocupadas</div>';
+        } else {
+            ocupadas.forEach(item => {
+                const status = String(item.status || 'VERDE').toUpperCase();
+                const gaveta = item.local;
+                const card = document.createElement('div');
+                card.className = `gaveta-bim ${status === 'VERMELHO' ? 'gaveta-alerta' : status === 'AMARELO' ? 'gaveta-amarela' : 'gaveta-ok'}`;
+                card.title = `${item.ecod} - ${item.descricao || ''}`;
+                card.innerHTML = gaveta;
+                grid.appendChild(card);
+                if (status === 'VERMELHO') { existeAlerta = true; if (ultimoStatusBIM[gaveta] !== 'VERMELHO') novoAlerta = true; }
+                ultimoStatusBIM[gaveta] = status;
+            });
+        }
+        if (novoAlerta) alarmeSilenciado = false;
+        if (existeAlerta && !alarmeSilenciado && audioLiberado) {
+            if (audioBIM.paused) { audioBIM.currentTime = 0; audioBIM.play().then(() => { console.log('Tocando alarme'); }).catch(err => { console.log('Erro áudio:', err); }); }
+        }
+        if (!existeAlerta) { audioBIM.pause(); audioBIM.currentTime = 0; }
+    } catch (e) { console.log('Erro Painel', e); }
+}
+        async function resetarGaveta(gaveta) {
+            const ok = await sendPost({ action: 'updateBIM', gaveta, status: 'VERDE' });
+            if (!ok) { console.log('Erro ao atualizar gaveta'); return; }
+            ultimoStatusBIM[gaveta] = 'VERDE';
+            setTimeout(() => { carregarBIM(); }, 800);
+        }
+        let alarmeSilenciado = false;
+        function silenciarAlarme() { alarmeSilenciado = true; audioBIM.pause(); audioBIM.currentTime = 0; }
+function startVoiceRecognition(type) {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) { alert("Seu navegador não suporta reconhecimento de voz. Recomendamos utilizar o Google Chrome."); return; }
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'pt-BR';
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    const inputId = type === 'os' ? 'osSelect' : 'ecodSelect';
+    const input = document.getElementById(inputId);
+    input.placeholder = "🎤 Ouvindo... fale agora";
+    recognition.onresult = (event) => {
+        let texto = event.results[0][0].transcript;
+        console.log("Reconhecido:", texto);
+        texto = texto.toUpperCase().trim();
+        if (type === 'os') {
+            const numeros = texto.match(/\d+/g);
+            const num = numeros ? numeros.join('') : '';
+            texto = num ? `OS${num}BR` : texto.replace(/ORDEM DE SERVIÇO/gi, '').replace(/ORDEM SERVIÇO/gi, '').replace(/\bOS\b/gi, '').trim();
+        } else {
+            // Remove o prefixo "I-CODE" / "I CODE" / "ICODE" e fica só com o número
+            texto = texto.replace(/\bI[- ]?CODE\b/gi, '').replace(/\bICODE\b/gi, '').trim();
+        }
+        texto = convertSpokenNumbers(texto);
+        texto = texto.replace(/\s+/g, '');
+        input.value = texto;
+        if (type === 'os') { currentOS = texto; document.getElementById('clearOSBtn').classList.toggle('hidden', !texto); }
+        else { currentEcod = texto; document.getElementById('clearEcodBtn').classList.toggle('hidden', !texto); }
+        aplicarFiltros();
+    };
+    recognition.onerror = (event) => {
+        console.error("Erro no reconhecimento de voz:", event.error);
+        if (event.error !== 'no-speech') alert("Não foi possível reconhecer sua voz. Tente novamente.");
+    };
+    recognition.onend = () => {
+        if (type === 'os') input.placeholder = "Digite, selecione ou fale a O.S.";
+        else input.placeholder = "Digite, selecione ou fale o I-Code";
+    };
+    recognition.start();
+}
+        function convertSpokenNumbers(text) {
+            const numbers = { 'ZERO': '0', 'UM': '1', 'UMA': '1', 'DOIS': '2', 'DUAS': '2', 'TRÊS': '3', 'TRES': '3', 'QUATRO': '4', 'CINCO': '5', 'SEIS': '6', 'SETE': '7', 'OITO': '8', 'NOVE': '9' };
+            let resultado = text;
+            Object.keys(numbers).forEach(palavra => {
+                const regex = new RegExp(`\b${palavra}\b`, 'gi');
+                resultado = resultado.replace(regex, numbers[palavra]);
+            });
+            return resultado;
+        }
+
+        function resolverItemPorCodigo(codigo) {
+    const c = String(codigo || '').trim().toUpperCase();
+    if (!c) return null;
+    return itensGestao.find(i => {
+        if (i.ecod.toUpperCase() === c) return true;
+        if (i.alternativo) {
+            return i.alternativo.split('/').some(a => a.trim().toUpperCase() === c);
+        }
+        return false;
+    });
+}
+    </script>
+</body>
+
+</html>
