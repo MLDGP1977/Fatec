@@ -1,1 +1,1534 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard Estação Lúdica - Telemetria</title>
+  
+  <!-- Basecoat CSS -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/basecoat-css@1.0.2/dist/basecoat.cdn.min.css">
+  
+  <!-- Shell System CSS & JS -->
+  <link rel="stylesheet" href="shell.css">
+  <script src="shell.js" defer></script>
+
+  <style>
+    :root {
+      --accent: #0969da;
+      --accent-text: #0969da;
+      --bg: #ffffff;
+      --surface: #f6f8fa;
+      --border: #d0d7de;
+      --text: #1f2328;
+      --text-muted: #57606a;
+      --color-success: #1a7f37;
+      --color-success-bg: #dafbe1;
+      --color-danger: #cf222e;
+      --color-danger-bg: #fef2f2;
+      --color-warning: #9a6700;
+      --color-warning-bg: #fff8c5;
+      --table-th-bg: #eaeef2;
+      --font-stack: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      font-family: var(--font-stack);
+      margin: 0;
+      padding: 0;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .dashboard-wrap {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px 16px 48px;
+    }
+
+    /* Cabeçalho */
+    .header-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+
+    .header-top {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 22px;
+    }
+
+    .logos-container {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      flex-shrink: 0;
+    }
+
+    .logos-container img {
+      height: 56px;
+      width: auto;
+      object-fit: contain;
+    }
+
+    .logo-divider {
+      width: 1px;
+      height: 40px;
+      background-color: var(--border);
+    }
+
+    .header-titles {
+      flex: 1;
+      min-width: 280px;
+    }
+
+    .header-titles h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: var(--text);
+      margin: 0 0 6px 0;
+      letter-spacing: -0.4px;
+      line-height: 1.2;
+    }
+
+    .header-titles p {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      margin: 0;
+      line-height: 1.5;
+    }
+
+    @media (max-width: 680px) {
+      .header-top {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: 16px;
+      }
+
+      .header-titles {
+        text-align: center;
+      }
+    }
+
+    .telemetry-alert {
+      margin-top: 16px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      border: 1px solid transparent;
+    }
+    .telemetry-alert.status-success {
+      background-color: var(--color-success-bg);
+      border-color: #a7f3d0;
+      color: var(--color-success);
+    }
+    .telemetry-alert.status-warning {
+      background-color: var(--color-warning-bg);
+      border-color: #fde68a;
+      color: var(--color-warning);
+    }
+
+    /* KPI Cards */
+    .kpi-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .kpi-card {
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 18px 16px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .kpi-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 14px rgba(0,0,0,0.06);
+    }
+
+    .kpi-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+    }
+
+    .kpi-blue::before { background: #0969da; }
+    .kpi-green::before { background: #1a7f37; }
+    .kpi-amber::before { background: #d97706; }
+    .kpi-purple::before { background: #8250df; }
+    .kpi-teal::before { background: #0f766e; }
+
+    .kpi-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .kpi-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .kpi-emoji {
+      font-size: 16px;
+    }
+
+    .kpi-num {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.1;
+      margin-bottom: 6px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .kpi-num.text-danger {
+      color: var(--color-danger);
+    }
+
+    .kpi-sub {
+      font-size: 12px;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    /* Painéis Compartilhados */
+    .dashboard-panel {
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+
+    .panel-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+
+    .panel-header h2 {
+      font-size: 18px;
+      font-weight: 700;
+      margin: 0;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Média vs. Última Rodada */
+    .comp-dual-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    .comp-dual-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+    }
+
+    .comp-dual-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 14px;
+    }
+
+    .comp-dual-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text);
+    }
+
+    .comp-status-badge {
+      font-size: 12px;
+      font-weight: 600;
+      padding: 4px 8px;
+      border-radius: 6px;
+    }
+
+    .status-faster {
+      background-color: var(--color-success-bg);
+      color: var(--color-success);
+      border: 1px solid #bbf7d0;
+    }
+
+    .status-slower {
+      background-color: var(--color-warning-bg);
+      color: var(--color-warning);
+      border: 1px solid #fef08a;
+    }
+
+    .comp-values-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      padding-top: 6px;
+      border-top: 1px dashed var(--border);
+    }
+
+    .comp-val-box {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .comp-val-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+
+    .comp-val-data {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text);
+    }
+
+    .comp-val-data.highlight-faster {
+      color: var(--color-success);
+    }
+
+    .comparison-note {
+      background-color: #f0f7ff;
+      border: 1px solid #c8e1ff;
+      border-radius: 8px;
+      padding: 14px 16px;
+      font-size: 13px;
+      color: #0c2d6b;
+      line-height: 1.5;
+    }
+
+    /* Gráfico de Rodadas */
+    .css-chart-list {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .chart-bar-item {
+      display: grid;
+      grid-template-columns: 220px 1fr 90px;
+      align-items: center;
+      gap: 16px;
+    }
+
+    @media (max-width: 680px) {
+      .chart-bar-item {
+        grid-template-columns: 1fr;
+        gap: 6px;
+      }
+    }
+
+    .bar-meta {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .bar-label {
+      font-weight: 700;
+      font-size: 14px;
+      color: var(--text);
+    }
+
+    .bar-sublabel {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .bar-track {
+      background: var(--table-th-bg);
+      height: 32px;
+      border-radius: 6px;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+    }
+
+    .bar-fill {
+      height: 100%;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      padding-left: 12px;
+      font-size: 12px;
+      font-weight: 700;
+      color: #0f172a;
+      transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+      min-width: 48px;
+      white-space: nowrap;
+    }
+
+    .bar-val-box {
+      text-align: right;
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .chart-benchmark-marker {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 18px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-around;
+      gap: 16px;
+      font-size: 13px;
+    }
+
+    .benchmark-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .benchmark-item strong {
+      color: var(--text);
+      font-size: 14px;
+    }
+
+    /* Registro das Rodadas - Tabela */
+    .table-toolbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .filter-group {
+      display: flex;
+      gap: 6px;
+      background: var(--surface);
+      padding: 4px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+
+    .btn-filter {
+      border: none;
+      background: transparent;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .btn-filter.active {
+      background: #ffffff;
+      color: var(--text);
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .btn-export {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #ffffff;
+      border: 1px solid var(--border);
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .btn-export:hover {
+      background: var(--surface);
+    }
+
+    .table-container {
+      overflow-x: auto;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+    }
+
+    .rodadas-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      text-align: left;
+    }
+
+    .rodadas-table th {
+      background: var(--table-th-bg);
+      color: var(--text);
+      font-weight: 600;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      white-space: nowrap;
+    }
+
+    .rodadas-table td {
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+      color: var(--text);
+    }
+
+    .rodadas-table tr.round-separator-row td {
+      background-color: var(--table-th-bg);
+      font-weight: 700;
+      color: var(--text);
+      letter-spacing: 0.3px;
+      padding: 8px 12px;
+      border-top: 2px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .row-neutral {
+      background: #ffffff;
+    }
+
+    .row-danger {
+      background-color: var(--color-danger-bg) !important;
+      border-left: 4px solid var(--color-danger);
+    }
+
+    /* Badges & Tags */
+    .shape-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      border: 1px solid var(--border);
+      background: #ffffff;
+    }
+    .shape-quadrado { border-color: #94a3b8; background: #f8fafc; }
+    .shape-circulo { border-color: #fca5a5; background: #fef2f2; color: #991b1b; }
+    .shape-estrela { border-color: #fde047; background: #fefce8; color: #854d0e; }
+    .shape-triangulo { border-color: #93c5fd; background: #eff6ff; color: #1e40af; }
+    .shape-retangulo { border-color: #cbd5e1; background: #f1f5f9; }
+
+    .location-tag {
+      font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+      font-size: 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 600;
+      color: #24292f;
+    }
+
+    .badge-error-zero {
+      display: inline-block;
+      min-width: 20px;
+      text-align: center;
+      padding: 2px 6px;
+      border-radius: 999px;
+      background-color: var(--color-success-bg);
+      color: var(--color-success);
+      font-weight: 700;
+      font-size: 11px;
+    }
+
+    .badge-error-alert {
+      display: inline-block;
+      min-width: 20px;
+      text-align: center;
+      padding: 2px 6px;
+      border-radius: 999px;
+      background-color: var(--color-danger-bg);
+      color: var(--color-danger);
+      font-weight: 700;
+      font-size: 11px;
+      border: 1px solid #fecaca;
+    }
+
+    /* Cards Informativos */
+    .info-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 20px;
+      margin-bottom: 24px;
+    }
+
+    .info-card {
+      background: #ffffff;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+    }
+
+    .info-card h3 {
+      font-size: 16px;
+      font-weight: 700;
+      margin: 0 0 12px 0;
+      color: var(--text);
+    }
+
+    .info-card p {
+      font-size: 13px;
+      line-height: 1.6;
+      color: var(--text-muted);
+      margin: 0;
+    }
+
+    .poka-matrix {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .poka-matrix li {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 12px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 13px;
+    }
+
+    .status-pill {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 999px;
+    }
+
+    .status-pill.validado {
+      background-color: var(--color-success-bg);
+      color: var(--color-success);
+    }
+
+    .status-pill.alerta {
+      background-color: var(--color-warning-bg);
+      color: var(--color-warning);
+    }
+
+    /* Rodapé */
+    .dashboard-footer {
+      border-top: 1px solid var(--border);
+      padding-top: 24px;
+      margin-top: 12px;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .footer-brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .footer-brand img {
+      height: 32px;
+      width: auto;
+    }
+
+    .text-num {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="dashboard-wrap">
+    
+    <!-- CABEÇALHO -->
+    <header class="header-card">
+      <div class="header-top">
+        <div class="logos-container">
+          <img src="https://mldgp1977.github.io/Fatec/Fatec.png" alt="Logo FATEC" onerror="this.style.display='none'">
+          <div class="logo-divider"></div>
+          <img src="https://mldgp1977.github.io/Fatec/LogoProd.png" alt="Logo Produção Industrial" onerror="this.style.display='none'">
+        </div>
+        <div class="header-titles">
+          <h1>Estação Lúdica — Telemetria das Rodadas</h1>
+          <p>Sistema Pick-to-Light e Put-to-Light Adaptado para Aprendizagem Inclusiva • Projeto Interdisciplinar II</p>
+        </div>
+      </div>
+      <div id="status-dados" class="telemetry-alert status-success">
+        Carregando telemetria em tempo real...
+      </div>
+    </header>
+
+    <!-- CARDS KPI (5 CARDS) -->
+    <section class="kpi-row" aria-label="Indicadores Chave">
+      <!-- 1. Total de Rodadas (Blue) -->
+      <div class="kpi-card kpi-blue" id="kpi-total">
+        <div class="kpi-header">
+          <span class="kpi-title">Total de Rodadas</span>
+          <span class="kpi-emoji">🔄</span>
+        </div>
+        <div class="kpi-num" id="val-total-rodadas">0</div>
+        <div class="kpi-sub" id="sub-total-rodadas">0 jogadas no total</div>
+      </div>
+
+      <!-- 2. Acertos (Green) -->
+      <div class="kpi-card kpi-green" id="kpi-acertos">
+        <div class="kpi-header">
+          <span class="kpi-title">Acertos</span>
+          <span class="kpi-emoji">✅</span>
+        </div>
+        <div class="kpi-num" id="val-acertos">0</div>
+        <div class="kpi-sub" id="sub-acertos">0 de 0 rodadas sem erro</div>
+      </div>
+
+      <!-- 3. Erros/Alertas (Amber/Red) -->
+      <div class="kpi-card kpi-amber" id="kpi-erros">
+        <div class="kpi-header">
+          <span class="kpi-title">Erros/Alertas</span>
+          <span class="kpi-emoji">⚠️</span>
+        </div>
+        <div class="kpi-num text-danger" id="val-erros">0</div>
+        <div class="kpi-sub" id="sub-erros">(0 retirada • 0 depósito)</div>
+      </div>
+
+      <!-- 4. Tempo Médio Total (Purple) -->
+      <div class="kpi-card kpi-purple" id="kpi-tempo-medio">
+        <div class="kpi-header">
+          <span class="kpi-title">Tempo Médio Total</span>
+          <span class="kpi-emoji">⏱️</span>
+        </div>
+        <div class="kpi-num" id="val-tempo-medio">0,0s</div>
+        <div class="kpi-sub" id="sub-tempo-medio">Retirada: 0,0s • Depósito: 0,0s</div>
+      </div>
+
+      <!-- 5. Tempo Última Rodada (Teal) -->
+      <div class="kpi-card kpi-teal" id="kpi-tempo-ultima">
+        <div class="kpi-header">
+          <span class="kpi-title">Tempo Última Rodada</span>
+          <span class="kpi-emoji">🎯</span>
+        </div>
+        <div class="kpi-num" id="val-tempo-ultima">0,0s</div>
+        <div class="kpi-sub" id="sub-tempo-ultima">Rodada 0 (▲ -)</div>
+      </div>
+    </section>
+
+    <!-- SEÇÃO: MÉDIA vs ÚLTIMA RODADA (ANTES DO REGISTRO) -->
+    <section class="dashboard-panel">
+      <div class="panel-header">
+        <h2>⚖️ Média vs. Última Rodada</h2>
+      </div>
+      <div class="comp-dual-grid">
+        <!-- Retirada -->
+        <div class="comp-dual-card">
+          <div class="comp-dual-top">
+            <span class="comp-dual-title">Tempo de Retirada</span>
+            <span class="comp-status-badge" id="tag-diff-retirada">-</span>
+          </div>
+          <div class="comp-values-row">
+            <div class="comp-val-box">
+              <span class="comp-val-label">Média Geral</span>
+              <span class="comp-val-data" id="comp-media-retirada">0,0s</span>
+            </div>
+            <div class="comp-val-box text-num">
+              <span class="comp-val-label">Última Rodada</span>
+              <span class="comp-val-data" id="comp-ultima-retirada">0,0s</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Depósito -->
+        <div class="comp-dual-card">
+          <div class="comp-dual-top">
+            <span class="comp-dual-title">Tempo de Depósito</span>
+            <span class="comp-status-badge" id="tag-diff-deposito">-</span>
+          </div>
+          <div class="comp-values-row">
+            <div class="comp-val-box">
+              <span class="comp-val-label">Média Geral</span>
+              <span class="comp-val-data" id="comp-media-deposito">0,0s</span>
+            </div>
+            <div class="comp-val-box text-num">
+              <span class="comp-val-label">Última Rodada</span>
+              <span class="comp-val-data" id="comp-ultima-deposito">0,0s</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Total -->
+        <div class="comp-dual-card">
+          <div class="comp-dual-top">
+            <span class="comp-dual-title">Tempo Total da Rodada</span>
+            <span class="comp-status-badge" id="tag-diff-total">-</span>
+          </div>
+          <div class="comp-values-row">
+            <div class="comp-val-box">
+              <span class="comp-val-label">Média Geral</span>
+              <span class="comp-val-data" id="comp-media-total">0,0s</span>
+            </div>
+            <div class="comp-val-box text-num">
+              <span class="comp-val-label">Última Rodada</span>
+              <span class="comp-val-data" id="comp-ultima-total">0,0s</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="comparison-note">
+        💡 <strong>Evolução Cognitiva & Aprendizagem Operacional:</strong> A redução progressiva de tempo entre as rodadas consecutivas evidencia a eficácia do suporte sensorial Pick-to-Light e Put-to-Light. Os sinalizadores luminosos guiam a atenção do aprendiz, mitigando hesitações de busca e promovendo a consolidação ergonômica de rotinas de trabalho seguras e produtivas.
+      </div>
+    </section>
+
+    <!-- SEÇÃO: GRÁFICO COMPARATIVO DE TEMPO TOTAL POR RODADA (ANTES DO REGISTRO) -->
+    <section class="dashboard-panel css-chart-card">
+      <div class="panel-header">
+        <h2>📊 Comparativo de Tempo Total por Rodada</h2>
+      </div>
+      
+      <!-- Barras proporcionais por rodada -->
+      <div class="css-chart-list" id="chart-bars-container">
+        <!-- Renderizado dinamicamente via JS -->
+      </div>
+
+      <div class="chart-benchmark-marker">
+        <div class="benchmark-item">
+          <span>Tempo Médio Geral:</span>
+          <strong id="marker-media-geral">0,0 s</strong>
+        </div>
+        <div class="benchmark-item">
+          <span>Variação Amostral:</span>
+          <strong id="marker-variacao">±0,0 s</strong>
+        </div>
+      </div>
+    </section>
+
+    <!-- SEÇÃO: REGISTRO DE RODADAS (DEPOIS DOS COMPARATIVOS) -->
+    <section class="dashboard-panel">
+      <div class="panel-header">
+        <h2>📋 Registro das Rodadas</h2>
+      </div>
+
+      <div class="table-toolbar">
+        <div class="filter-group">
+          <button class="btn-filter active" data-filter="all" id="btn-filter-all">
+            Todas (<span id="count-all">0</span>)
+          </button>
+          <button class="btn-filter" data-filter="no-error" id="btn-filter-no-error">
+            Sem Falhas (<span id="count-no-error">0</span>)
+          </button>
+          <button class="btn-filter" data-filter="has-error" id="btn-filter-has-error">
+            Com Alertas (<span id="count-has-error">0</span>)
+          </button>
+        </div>
+
+        <button class="btn-export" id="btn-export-csv" title="Baixar relatório CSV formatado">
+          📥 Exportar CSV
+        </button>
+      </div>
+
+      <div class="table-container">
+        <table class="rodadas-table" id="tabela-jogadas">
+          <thead>
+            <tr>
+              <th>Data/Hora</th>
+              <th>Jogada</th>
+              <th>Peça</th>
+              <th>Origem</th>
+              <th>Destino</th>
+              <th class="text-num">Tempo Retirada (s)</th>
+              <th class="text-num">Tempo Depósito (s)</th>
+              <th class="text-num">Tempo Total (s)</th>
+              <th style="text-align:center;">Erros Retirada</th>
+              <th style="text-align:center;">Erros Depósito</th>
+            </tr>
+          </thead>
+          <tbody id="tabela-corpo">
+            <!-- Linhas de jogadas e divisores de rodadas gerados via JS -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- CARDS INFORMATIVOS -->
+    <section class="info-grid">
+      <div class="info-card">
+        <h3>🎯 Princípio Pick-to-Light e Put-to-Light</h3>
+        <p>
+          A tecnologia Pick-to-Light orienta visualmente o operador por meio de indicadores luminosos acoplados nos bins exatos de retirada de componentes. Sequencialmente, o Put-to-Light ilumina a posição de destino e montagem da peça. Este método de produção enxuta e inclusiva erradica a sobrecarga de memória de trabalho, elimina erros de conferência e cria uma interface de aprendizagem universal e acessível para pessoas com diferentes níveis de destreza motora e cognitiva.
+        </p>
+      </div>
+
+      <div class="info-card">
+        <h3>🛡️ Matriz Poka-Yoke & Endereçamento</h3>
+        <ul class="poka-matrix">
+          <li>
+            <span><strong>O1 Quadrado</strong> ➔ <strong>A1</strong></span>
+            <span class="status-pill validado">Validado</span>
+          </li>
+          <li>
+            <span><strong>O2 Círculo</strong> ➔ <strong>B2</strong></span>
+            <span class="status-pill alerta">Alerta Retirada</span>
+          </li>
+          <li>
+            <span><strong>O3 Estrela</strong> ➔ <strong>B1</strong></span>
+            <span class="status-pill validado">Validado</span>
+          </li>
+          <li>
+            <span><strong>O4 Triângulo</strong> ➔ <strong>A2</strong></span>
+            <span class="status-pill validado">Validado</span>
+          </li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- RODAPÉ -->
+    <footer class="dashboard-footer">
+      <div class="footer-brand">
+        <img src="https://mldgp1977.github.io/Fatec/Fatec.png" alt="FATEC" onerror="this.style.display='none'">
+        <span>FATEC Botucatu • Curso Superior de Tecnologia em Produção Industrial • Projeto Interdisciplinar II</span>
+      </div>
+      <div>
+        <span>Estação Lúdica de Aprendizagem • Telemetria Poka-Yoke</span>
+      </div>
+    </footer>
+
+  </div>
+
+  <script>
+    // URL da API Telemetria Google Apps Script
+    const URL_API = "https://script.google.com/macros/s/AKfycbxfpxzlHWNo620985ft6VRQEBUYDExnu7QjNM9oLhSAjRVPYk-n8FL4BYQ8Tp8L_zMUew/exec";
+
+    // DEMO Fallback padrão (2 rodadas × 4 jogadas, coluna rodada = 1..4 por jogada)
+    const DEMO_DADOS = [
+      { data_hora: "18:45:12", rodada: 1, peca: "QUADRADO",  origem: "O1", destino: "A1", tempo_retirada_s: 3.5, tempo_deposito_s: 4.2, tempo_total_s: 7.7, erros_retirada: 0, erros_deposito: 0 },
+      { data_hora: "18:46:05", rodada: 2, peca: "CIRCULO",   origem: "O2", destino: "B2", tempo_retirada_s: 5.1, tempo_deposito_s: 3.8, tempo_total_s: 8.9, erros_retirada: 1, erros_deposito: 0 },
+      { data_hora: "18:47:01", rodada: 3, peca: "ESTRELA",   origem: "O3", destino: "B1", tempo_retirada_s: 2.9, tempo_deposito_s: 5.0, tempo_total_s: 7.9, erros_retirada: 0, erros_deposito: 0 },
+      { data_hora: "18:48:22", rodada: 4, peca: "TRIANGULO", origem: "O4", destino: "A2", tempo_retirada_s: 4.4, tempo_deposito_s: 3.1, tempo_total_s: 7.5, erros_retirada: 0, erros_deposito: 0 },
+      { data_hora: "18:52:10", rodada: 1, peca: "RETANGULO", origem: "O1", destino: "B2", tempo_retirada_s: 3.0, tempo_deposito_s: 3.5, tempo_total_s: 6.5, erros_retirada: 0, erros_deposito: 1 },
+      { data_hora: "18:53:02", rodada: 2, peca: "CIRCULO",   origem: "O2", destino: "A1", tempo_retirada_s: 4.0, tempo_deposito_s: 3.2, tempo_total_s: 7.2, erros_retirada: 0, erros_deposito: 0 },
+      { data_hora: "18:53:48", rodada: 3, peca: "QUADRADO",  origem: "O3", destino: "A2", tempo_retirada_s: 2.5, tempo_deposito_s: 2.8, tempo_total_s: 5.3, erros_retirada: 0, erros_deposito: 0 },
+      { data_hora: "18:54:31", rodada: 4, peca: "TRIANGULO", origem: "O4", destino: "B1", tempo_retirada_s: 3.2, tempo_deposito_s: 2.9, tempo_total_s: 6.1, erros_retirada: 0, erros_deposito: 0 }
+    ];
+
+    // Paleta ciclando para o gráfico
+    const CORES_GRAFICO = ['#38bdf8', '#fb923c', '#c084fc', '#34d399'];
+
+    // Estado da aplicação
+    let jogadasAtuais = [];
+    let rodadasAtuais = [];
+    let filtroAtual = 'all';
+
+    // 1. Função extrairHora(valor)
+    function extrairHora(valor) {
+      if (valor === null || valor === undefined) return "";
+      const s = String(valor).trim();
+      if (!s) return "";
+
+      if (s.includes("T")) {
+        const partesT = s.split("T");
+        if (partesT.length > 1) {
+          const horaParte = partesT[1];
+          if (horaParte.includes(".")) {
+            return horaParte.split(".")[0];
+          }
+          if (horaParte.includes("Z")) {
+            return horaParte.split("Z")[0];
+          }
+          return horaParte.substring(0, 8);
+        }
+      }
+
+      // Se já for HH:MM:SS ou HH:MM
+      if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(s)) {
+        return s;
+      }
+
+      // Procura formato de hora na string
+      const match = s.match(/\d{2}:\d{2}:\d{2}/);
+      if (match) return match[0];
+
+      return "";
+    }
+
+    // 2. Função num(v)
+    function num(v) {
+      if (v === null || v === undefined || v === "") return 0;
+      const parsed = parseFloat(String(v).replace(",", "."));
+      return isNaN(parsed) ? 0 : parsed;
+    }
+
+    // Helper de forma de peça com ícone
+    function renderPecaBadge(peca) {
+      const p = (peca || "").toUpperCase();
+      if (p.includes("QUADRADO")) {
+        return `<span class="shape-badge shape-quadrado">⬛ QUADRADO</span>`;
+      }
+      if (p.includes("CIRCULO") || p.includes("CÍRCULO")) {
+        return `<span class="shape-badge shape-circulo">🔴 CÍRCULO</span>`;
+      }
+      if (p.includes("ESTRELA")) {
+        return `<span class="shape-badge shape-estrela">⭐ ESTRELA</span>`;
+      }
+      if (p.includes("TRIANGULO") || p.includes("TRIÂNGULO")) {
+        return `<span class="shape-badge shape-triangulo">▲ TRIÂNGULO</span>`;
+      }
+      if (p.includes("RETANGULO") || p.includes("RETÂNGULO")) {
+        return `<span class="shape-badge shape-retangulo">▬ RETÂNGULO</span>`;
+      }
+      return `<span class="shape-badge">${peca || "-"}</span>`;
+    }
+
+    // Função para obter apenas as 4 rodadas mais recentes
+    function obterUltimasRodadas(rodadas) {
+      if (!Array.isArray(rodadas)) return [];
+      return rodadas.slice(-4);
+    }
+
+    // Normalizador de linhas da API (tanto array de objetos quanto array de arrays)
+    function normalizarLinhas(dados, cabecalho) {
+      if (!Array.isArray(dados) || dados.length === 0) return [];
+
+      // Caso venha array de arrays (ex.: com linha de cabeçalho ou índices)
+      if (Array.isArray(dados[0])) {
+        let headers = Array.isArray(cabecalho) ? cabecalho : [];
+        let startIndex = 0;
+
+        if (typeof dados[0][0] === "string" && (dados[0][0].toLowerCase().includes("data") || dados[0][0].toLowerCase().includes("hora"))) {
+          headers = dados[0].map(h => String(h).trim().toLowerCase());
+          startIndex = 1;
+        } else if (headers.length === 0) {
+          headers = ["data_hora", "rodada", "peca", "origem", "destino", "tempo_retirada_s", "tempo_deposito_s", "tempo_total_s", "erros_retirada", "erros_deposito"];
+        } else {
+          headers = headers.map(h => String(h).trim().toLowerCase());
+        }
+
+        const idx = {
+          hora: headers.findIndex(h => h.includes("hora") || h.includes("data")),
+          rodada: headers.findIndex(h => h === "rodada" || h.includes("rodada")),
+          peca: headers.findIndex(h => h.includes("peca") || h.includes("peça")),
+          origem: headers.findIndex(h => h.includes("origem")),
+          destino: headers.findIndex(h => h.includes("destino")),
+          tRet: headers.findIndex(h => h.includes("retirada") && h.includes("tempo")),
+          tDep: headers.findIndex(h => h.includes("deposito") && h.includes("tempo")),
+          tTot: headers.findIndex(h => h.includes("total") && h.includes("tempo")),
+          eRet: headers.findIndex(h => h.includes("retirada") && (h.includes("erro") || h.includes("alerta"))),
+          eDep: headers.findIndex(h => h.includes("deposito") && (h.includes("erro") || h.includes("alerta")))
+        };
+
+        const result = [];
+        for (let i = startIndex; i < dados.length; i++) {
+          const row = dados[i];
+          if (!row || row.length === 0 || row.every(c => c === "" || c == null)) continue;
+
+          const rawHora = idx.hora !== -1 ? row[idx.hora] : row[0];
+          const rawRodada = idx.rodada !== -1 ? row[idx.rodada] : row[1];
+          const rawPeca = idx.peca !== -1 ? row[idx.peca] : row[2];
+          const rawOrigem = idx.origem !== -1 ? row[idx.origem] : row[3];
+          const rawDestino = idx.destino !== -1 ? row[idx.destino] : row[4];
+          const tRet = num(idx.tRet !== -1 ? row[idx.tRet] : row[5]);
+          const tDep = num(idx.tDep !== -1 ? row[idx.tDep] : row[6]);
+          const tTot = num(idx.tTot !== -1 ? row[idx.tTot] : row[7]) || (tRet + tDep);
+          const eRet = Math.round(num(idx.eRet !== -1 ? row[idx.eRet] : row[8]));
+          const eDep = Math.round(num(idx.eDep !== -1 ? row[idx.eDep] : row[9]));
+
+          const jogadaNum = num(rawRodada) || ((result.length % 4) + 1);
+          const rodadaNum = Math.floor(result.length / 4) + 1;
+
+          result.push({
+            data_hora: extrairHora(rawHora),
+            rodada: rodadaNum,
+            jogada: jogadaNum,
+            peca: String(rawPeca || "").toUpperCase().trim(),
+            origem: String(rawOrigem || "").toUpperCase().trim(),
+            destino: String(rawDestino || "").toUpperCase().trim(),
+            tempo_retirada_s: tRet,
+            tempo_deposito_s: tDep,
+            tempo_total_s: tTot,
+            erros_retirada: eRet,
+            erros_deposito: eDep
+          });
+        }
+        return result;
+      }
+
+      // Caso venha array de objetos (formato padrão do Google Apps Script)
+      return dados.map((d, index) => {
+        const tRet = num(d.tempo_retirada_s ?? d.tempo_retirada ?? d.retirada);
+        const tDep = num(d.tempo_deposito_s ?? d.tempo_deposito ?? d.deposito);
+        const tTot = num(d.tempo_total_s ?? d.tempo_total ?? d.total) || (tRet + tDep);
+        const jogadaNum = num(d.rodada) || num(d.jogada) || ((index % 4) + 1);
+        const rodadaNum = Math.floor(index / 4) + 1;
+
+        return {
+          data_hora: extrairHora(d.data_hora ?? d.hora ?? d.timestamp),
+          rodada: rodadaNum,
+          jogada: jogadaNum,
+          peca: String(d.peca || d.peça || "").toUpperCase().trim(),
+          origem: String(d.origem || "").toUpperCase().trim(),
+          destino: String(d.destino || "").toUpperCase().trim(),
+          tempo_retirada_s: tRet,
+          tempo_deposito_s: tDep,
+          tempo_total_s: tTot,
+          erros_retirada: Math.round(num(d.erros_retirada ?? d.erro_retirada)),
+          erros_deposito: Math.round(num(d.erros_deposito ?? d.erro_deposito))
+        };
+      });
+    }
+
+    // 3. Função agruparPorRodadas(linhas)
+    function agruparPorRodadas(linhas) {
+      const rodadas = [];
+      const total = linhas.length;
+      const numRodadas = Math.ceil(total / 4);
+
+      for (let r = 0; r < numRodadas; r++) {
+        const slice = linhas.slice(r * 4, (r + 1) * 4);
+        if (slice.length === 0) continue;
+        const rIndex = r + 1;
+
+        let tempoRetirada = 0;
+        let tempoDeposito = 0;
+        let tempoTotal = 0;
+        let errosRetirada = 0;
+        let errosDeposito = 0;
+
+        slice.forEach(j => {
+          j.rodada = rIndex;
+          tempoRetirada += j.tempo_retirada_s;
+          tempoDeposito += j.tempo_deposito_s;
+          tempoTotal += j.tempo_total_s;
+          errosRetirada += j.erros_retirada;
+          errosDeposito += j.erros_deposito;
+        });
+
+        const ultimaJogada = slice[slice.length - 1];
+
+        rodadas.push({
+          indice: rIndex,
+          jogadas: slice,
+          tempoTotal: tempoTotal,
+          tempoRetirada: tempoRetirada,
+          tempoDeposito: tempoDeposito,
+          errosRetirada: errosRetirada,
+          errosDeposito: errosDeposito,
+          erros: errosRetirada + errosDeposito,
+          pecaUltima: ultimaJogada ? ultimaJogada.peca : "-",
+          origemUltima: ultimaJogada ? ultimaJogada.origem : "-",
+          destinoUltima: ultimaJogada ? ultimaJogada.destino : "-",
+          horaUltima: ultimaJogada ? extrairHora(ultimaJogada.data_hora) : ""
+        });
+      }
+
+      return rodadas;
+    }
+
+    // Atualiza o badge do painel comparativo indicando o recorte amostral
+    function atualizarBadgeComparativo(qtd) {
+      const headers = document.querySelectorAll(".panel-header");
+      headers.forEach(header => {
+        const h2 = header.querySelector("h2");
+        if (h2 && h2.textContent.includes("Média vs. Última Rodada")) {
+          let badge = header.querySelector(".shell-badge");
+          if (!badge) {
+            badge = document.createElement("span");
+            badge.className = "shell-badge";
+            header.appendChild(badge);
+          }
+          const texto = qtd <= 1 ? `Última ${qtd} rodada` : `Últimas ${qtd} rodadas`;
+          badge.textContent = texto;
+        }
+      });
+    }
+
+    function renderComparativo(media, ultima, tipo) {
+      const elMedia = document.getElementById(`comp-media-${tipo}`);
+      const elUltima = document.getElementById(`comp-ultima-${tipo}`);
+      const elTag = document.getElementById(`tag-diff-${tipo}`);
+
+      elMedia.textContent = media.toFixed(1).replace('.', ',') + "s";
+      elUltima.textContent = ultima.toFixed(1).replace('.', ',') + "s";
+
+      const diff = ultima - media;
+      const diffFormat = Math.abs(diff).toFixed(1).replace('.', ',');
+
+      if (ultima < media) {
+        elTag.className = "comp-status-badge status-faster";
+        elTag.textContent = `▼ -${diffFormat} s (mais rápido)`;
+        elUltima.classList.add("highlight-faster");
+      } else if (ultima > media) {
+        elTag.className = "comp-status-badge status-slower";
+        elTag.textContent = `▲ +${diffFormat} s`;
+        elUltima.classList.remove("highlight-faster");
+      } else {
+        elTag.className = "comp-status-badge";
+        elTag.textContent = `= 0,0 s`;
+        elUltima.classList.remove("highlight-faster");
+      }
+    }
+
+    function renderGrafico(rodadas, mediaGeral) {
+      const container = document.getElementById("chart-bars-container");
+      container.innerHTML = "";
+
+      if (rodadas.length === 0) return;
+
+      const maxTempo = Math.max(...rodadas.map(r => r.tempoTotal), 1);
+
+      rodadas.forEach((r, idx) => {
+        const cor = CORES_GRAFICO[idx % CORES_GRAFICO.length];
+        const pct = Math.min(100, Math.max(12, (r.tempoTotal / maxTempo) * 100));
+        const formattedTempo = r.tempoTotal.toFixed(1).replace('.', ',') + " s";
+
+        const barDiv = document.createElement("div");
+        barDiv.className = "chart-bar-item";
+        barDiv.innerHTML = `
+          <div class="bar-meta">
+            <span class="bar-label">Rodada ${r.indice}</span>
+            <span class="bar-sublabel">${r.pecaUltima} • ${r.origemUltima} → ${r.destinoUltima}</span>
+          </div>
+          <div class="bar-track" title="Tempo Rodada ${r.indice}: ${formattedTempo}">
+            <div class="bar-fill" style="width: ${pct}%; background-color: ${cor};">
+              ${formattedTempo}
+            </div>
+          </div>
+          <div class="bar-val-box">
+            ${formattedTempo}
+          </div>
+        `;
+        container.appendChild(barDiv);
+      });
+
+      // Marcadores do Benchmark
+      document.getElementById("marker-media-geral").textContent = mediaGeral.toFixed(1).replace('.', ',') + " s";
+
+      if (rodadas.length > 1) {
+        const tempos = rodadas.map(r => r.tempoTotal);
+        const minT = Math.min(...tempos);
+        const maxT = Math.max(...tempos);
+        const amplitude = (maxT - minT) / 2;
+        document.getElementById("marker-variacao").textContent = `±${amplitude.toFixed(1).replace('.', ',')} s`;
+      } else {
+        document.getElementById("marker-variacao").textContent = `±0,0 s`;
+      }
+    }
+
+    function renderTabela(jogadas, filtro) {
+      const corpo = document.getElementById("tabela-corpo");
+      corpo.innerHTML = "";
+
+      let currentRodada = null;
+
+      jogadas.forEach(j => {
+        const hasError = (j.erros_retirada > 0 || j.erros_deposito > 0);
+
+        // Aplicação do filtro
+        if (filtro === "no-error" && hasError) return;
+        if (filtro === "has-error" && !hasError) return;
+
+        // Se mudou de rodada, insere linha separadora com fundo #eaeef2
+        if (j.rodada !== currentRodada) {
+          currentRodada = j.rodada;
+          const sepRow = document.createElement("tr");
+          sepRow.className = "round-separator-row";
+          sepRow.innerHTML = `
+            <td colspan="10">
+              — Rodada ${currentRodada} —
+            </td>
+          `;
+          corpo.appendChild(sepRow);
+        }
+
+        const row = document.createElement("tr");
+        row.className = hasError ? "row-danger" : "row-neutral";
+        row.setAttribute("data-has-error", hasError ? "true" : "false");
+
+        const badgeRetirada = j.erros_retirada === 0 
+          ? `<span class="badge-error-zero">0</span>` 
+          : `<span class="badge-error-alert">${j.erros_retirada}</span>`;
+
+        const badgeDeposito = j.erros_deposito === 0 
+          ? `<span class="badge-error-zero">0</span>` 
+          : `<span class="badge-error-alert">${j.erros_deposito}</span>`;
+
+        row.innerHTML = `
+          <td>${j.data_hora}</td>
+          <td>Jogada ${j.jogada}</td>
+          <td>${renderPecaBadge(j.peca)}</td>
+          <td><span class="location-tag">${j.origem}</span></td>
+          <td><span class="location-tag">${j.destino}</span></td>
+          <td class="text-num">${j.tempo_retirada_s.toFixed(1).replace('.', ',')}</td>
+          <td class="text-num">${j.tempo_deposito_s.toFixed(1).replace('.', ',')}</td>
+          <td class="text-num"><strong>${j.tempo_total_s.toFixed(1).replace('.', ',')}</strong></td>
+          <td style="text-align:center;">${badgeRetirada}</td>
+          <td style="text-align:center;">${badgeDeposito}</td>
+        `;
+
+        corpo.appendChild(row);
+      });
+    }
+
+    function atualizarContadoresFiltros(jogadas) {
+      const total = jogadas.length;
+      const comErro = jogadas.filter(j => j.erros_retirada > 0 || j.erros_deposito > 0).length;
+      const semErro = total - comErro;
+
+      document.getElementById("count-all").textContent = total;
+      document.getElementById("count-no-error").textContent = semErro;
+      document.getElementById("count-has-error").textContent = comErro;
+    }
+
+    // 4. Função renderizar(linhas)
+    function renderizar(linhas, cabecalho) {
+      const jogadas = normalizarLinhas(linhas, cabecalho);
+      if (jogadas.length === 0) return;
+
+      jogadasAtuais = jogadas;
+      rodadasAtuais = agruparPorRodadas(jogadas);
+
+      const totalRodadas = rodadasAtuais.length;
+      const totalJogadas = jogadas.length;
+
+      // CARDS KPI por RODADA (blocos de 4)
+      const acertos = rodadasAtuais.filter(r => r.erros === 0).length;
+
+      let somaErrosRetirada = 0;
+      let somaErrosDeposito = 0;
+      let somaTempoTotal = 0;
+      let somaTempoRetirada = 0;
+      let somaTempoDeposito = 0;
+
+      rodadasAtuais.forEach(r => {
+        somaErrosRetirada += r.errosRetirada;
+        somaErrosDeposito += r.errosDeposito;
+        somaTempoTotal += r.tempoTotal;
+        somaTempoRetirada += r.tempoRetirada;
+        somaTempoDeposito += r.tempoDeposito;
+      });
+
+      const totalErros = somaErrosRetirada + somaErrosDeposito;
+      const tempoMedioTotal = totalRodadas > 0 ? somaTempoTotal / totalRodadas : 0;
+      const tempoMedioRetirada = totalRodadas > 0 ? somaTempoRetirada / totalRodadas : 0;
+      const tempoMedioDeposito = totalRodadas > 0 ? somaTempoDeposito / totalRodadas : 0;
+
+      const ultimaRodadaGeral = rodadasAtuais[totalRodadas - 1] || {
+        indice: 0,
+        tempoTotal: 0,
+        tempoRetirada: 0,
+        tempoDeposito: 0,
+        pecaUltima: "-"
+      };
+
+      // Atualiza Cards KPI
+      document.getElementById("val-total-rodadas").textContent = totalRodadas;
+      document.getElementById("sub-total-rodadas").textContent = `${totalJogadas} jogadas no total`;
+
+      document.getElementById("val-acertos").textContent = acertos;
+      document.getElementById("sub-acertos").textContent = `${acertos} de ${totalRodadas} rodadas sem erro`;
+
+      document.getElementById("val-erros").textContent = totalErros;
+      document.getElementById("sub-erros").textContent = `(${somaErrosRetirada} retirada • ${somaErrosDeposito} depósito)`;
+
+      document.getElementById("val-tempo-medio").textContent = tempoMedioTotal.toFixed(1).replace('.', ',') + "s";
+      document.getElementById("sub-tempo-medio").textContent = `Retirada: ${tempoMedioRetirada.toFixed(1).replace('.', ',')}s • Depósito: ${tempoMedioDeposito.toFixed(1).replace('.', ',')}s`;
+
+      document.getElementById("val-tempo-ultima").textContent = ultimaRodadaGeral.tempoTotal.toFixed(1).replace('.', ',') + "s";
+      document.getElementById("sub-tempo-ultima").textContent = `Rodada ${ultimaRodadaGeral.indice} (▲ ${ultimaRodadaGeral.pecaUltima})`;
+
+      // SEÇÃO "MÉDIA vs ÚLTIMA RODADA" (Apenas últimas 4 rodadas)
+      const ultimasRodadas = obterUltimasRodadas(rodadasAtuais);
+      const qtdRecorte = ultimasRodadas.length;
+
+      let somaRecorteTotal = 0;
+      let somaRecorteRetirada = 0;
+      let somaRecorteDeposito = 0;
+
+      ultimasRodadas.forEach(r => {
+        somaRecorteTotal += r.tempoTotal;
+        somaRecorteRetirada += r.tempoRetirada;
+        somaRecorteDeposito += r.tempoDeposito;
+      });
+
+      const mediaRecorteTotal = qtdRecorte > 0 ? somaRecorteTotal / qtdRecorte : 0;
+      const mediaRecorteRetirada = qtdRecorte > 0 ? somaRecorteRetirada / qtdRecorte : 0;
+      const mediaRecorteDeposito = qtdRecorte > 0 ? somaRecorteDeposito / qtdRecorte : 0;
+
+      const ultimaRodadaRecorte = ultimasRodadas[qtdRecorte - 1] || {
+        indice: 0,
+        tempoTotal: 0,
+        tempoRetirada: 0,
+        tempoDeposito: 0,
+        pecaUltima: "-"
+      };
+
+      renderComparativo(mediaRecorteRetirada, ultimaRodadaRecorte.tempoRetirada, "retirada");
+      renderComparativo(mediaRecorteDeposito, ultimaRodadaRecorte.tempoDeposito, "deposito");
+      renderComparativo(mediaRecorteTotal, ultimaRodadaRecorte.tempoTotal, "total");
+      atualizarBadgeComparativo(qtdRecorte);
+
+      // GRÁFICO (Apenas últimas 4 rodadas)
+      renderGrafico(ultimasRodadas, mediaRecorteTotal);
+
+      // TABELA (Uma linha por jogada com separador de rodada)
+      renderTabela(jogadasAtuais, filtroAtual);
+      atualizarContadoresFiltros(jogadasAtuais);
+    }
+
+    // Exportação CSV
+    function exportarCSV() {
+      if (!jogadasAtuais || jogadasAtuais.length === 0) {
+        alert("Não há dados para exportação.");
+        return;
+      }
+
+      const headers = [
+        "data_hora",
+        "rodada",
+        "jogada",
+        "peca",
+        "origem",
+        "destino",
+        "tempo_retirada_s",
+        "tempo_deposito_s",
+        "tempo_total_s",
+        "erros_retirada",
+        "erros_deposito"
+      ];
+
+      const csvRows = [headers.join(";")];
+
+      jogadasAtuais.forEach(j => {
+        const row = [
+          `"${j.data_hora}"`,
+          j.rodada,
+          j.jogada,
+          `"${j.peca}"`,
+          `"${j.origem}"`,
+          `"${j.destino}"`,
+          j.tempo_retirada_s.toFixed(1).replace('.', ','),
+          j.tempo_deposito_s.toFixed(1).replace('.', ','),
+          j.tempo_total_s.toFixed(1).replace('.', ','),
+          j.erros_retirada,
+          j.erros_deposito
+        ];
+        csvRows.push(row.join(";"));
+      });
+
+      const csvContent = "\uFEFF" + csvRows.join("\r\n");
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.setAttribute("href", url);
+      link.setAttribute("download", `telemetria_estacao_ludica_${new Date().toISOString().slice(0,10)}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
+
+    // 5. Fluxo de carregamento de dados da API
+    async function carregarDadosApi() {
+      const statusEl = document.getElementById("status-dados");
+
+      try {
+        const response = await fetch(URL_API, { cache: "no-store" });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+        const json = await response.json();
+        const linhas = json && json.linhas ? json.linhas : (Array.isArray(json) ? json : []);
+        const ok = json && (json.ok === true || json.ok === "true" || (Array.isArray(linhas) && linhas.length > 0));
+
+        if (ok && Array.isArray(linhas) && linhas.length > 0) {
+          renderizar(linhas, json.cabecalho);
+          const hora = new Date().toLocaleTimeString("pt-BR");
+          statusEl.className = "telemetry-alert status-success";
+          statusEl.textContent = `Dados da planilha • atualizado às ${hora} • ${rodadasAtuais.length} rodadas`;
+        } else if (Array.isArray(linhas) && linhas.length === 0) {
+          statusEl.className = "telemetry-alert status-warning";
+          statusEl.textContent = "Nenhuma rodada registrada ainda — exibindo demonstração";
+          renderizar(DEMO_DADOS);
+        } else {
+          statusEl.className = "telemetry-alert status-warning";
+          statusEl.textContent = "Não foi possível acessar a planilha — exibindo dados de demonstração";
+          renderizar(DEMO_DADOS);
+        }
+      } catch (err) {
+        statusEl.className = "telemetry-alert status-warning";
+        statusEl.textContent = "Não foi possível acessar a planilha — exibindo dados de demonstração";
+        renderizar(DEMO_DADOS);
+      }
+    }
+
+    // Inicialização da Aplicação
+    document.addEventListener("DOMContentLoaded", () => {
+      // 1. Ao carregar renderiza imediatamente DEMO
+      renderizar(DEMO_DADOS);
+      const statusEl = document.getElementById("status-dados");
+      statusEl.className = "telemetry-alert status-warning";
+      statusEl.textContent = "Conectando à planilha da bancada...";
+
+      // 2. Busca dados reais da planilha
+      carregarDadosApi();
+
+      // 3. Polling automático a cada 15 segundos (15000ms)
+      setInterval(carregarDadosApi, 15000);
+
+      // 4. Configuração dos filtros de tabela
+      const botoesFiltro = document.querySelectorAll(".btn-filter");
+      botoesFiltro.forEach(btn => {
+        btn.addEventListener("click", () => {
+          botoesFiltro.forEach(b => b.classList.remove("active"));
+          btn.classList.add("active");
+          filtroAtual = btn.getAttribute("data-filter");
+          renderTabela(jogadasAtuais, filtroAtual);
+        });
+      });
+
+      // 5. Botão de Exportar CSV
+      document.getElementById("btn-export-csv").addEventListener("click", exportarCSV);
+    });
+  </script>
+</body>
+</html>
 
